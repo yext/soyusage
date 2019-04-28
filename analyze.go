@@ -1,7 +1,6 @@
 package soyusage
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/robfig/soy/ast"
@@ -103,7 +102,7 @@ func analyzeNode(s *scope, node ...ast.Node) error {
 			case *ast.FunctionNode:
 				return analyzeNodeSetUsage(cs, UsageUnknown, v.Children()...)
 			case *ast.GlobalNode:
-				return errors.New("not implemented")
+				// Globals assign primitive values and can be ignored for analyzing parameters
 			case *ast.GtNode:
 				return analyzeNodeSetUsage(cs, UsageFull, v.Arg1, v.Arg2)
 			case *ast.GteNode:
@@ -127,7 +126,7 @@ func analyzeNode(s *scope, node ...ast.Node) error {
 				cs.variables[v.Name] = nil
 				return mapVariable(cs, v.Name, v.Expr)
 			case *ast.ListLiteralNode:
-				return errors.New("not implemented")
+				return analyzeNode(cs, v.Items...)
 			case *ast.ListNode:
 				return analyzeNode(cs, v.Children()...)
 			case *ast.LogNode:
@@ -137,19 +136,28 @@ func analyzeNode(s *scope, node ...ast.Node) error {
 			case *ast.LteNode:
 				return analyzeNodeSetUsage(cs, UsageFull, v.Arg1, v.Arg2)
 			case *ast.MapLiteralNode:
-				return errors.New("not implemented")
+				for _, node := range v.Items {
+					if err := analyzeNode(cs, node); err != nil {
+						return err
+					}
+				}
 			case *ast.ModNode:
 				return analyzeNodeSetUsage(cs, UsageFull, v.Arg1, v.Arg2)
-			case *ast.MsgHtmlTagNode:
-				return errors.New("not implemented")
 			case *ast.MsgNode:
-				return errors.New("not implemented")
+				return analyzeNode(cs, v.Body)
 			case *ast.MsgPlaceholderNode:
-				return errors.New("not implemented")
+				return analyzeNode(cs, v.Body)
 			case *ast.MsgPluralCaseNode:
-				return errors.New("not implemented")
+				return analyzeNode(cs, v.Body)
 			case *ast.MsgPluralNode:
-				return errors.New("not implemented")
+				if err := analyzeNodeSetUsage(cs, UsageFull, v.Value); err != nil {
+					return err
+				}
+				for _, c := range v.Cases {
+					if err := analyzeNode(cs, c.Body); err != nil {
+						return err
+					}
+				}
 			case *ast.MulNode:
 				return analyzeNodeSetUsage(cs, UsageFull, v.Arg1, v.Arg2)
 			case *ast.NegateNode:
@@ -172,7 +180,17 @@ func analyzeNode(s *scope, node ...ast.Node) error {
 					}
 				}
 			case *ast.SwitchNode:
-				return errors.New("not implemented")
+				if err := analyzeNodeSetUsage(cs, UsageFull, v.Value); err != nil {
+					return err
+				}
+				for _, c := range v.Cases {
+					if err := analyzeNodeSetUsage(cs, UsageFull, c.Values...); err != nil {
+						return err
+					}
+					if err := analyzeNode(cs, c.Body); err != nil {
+						return err
+					}
+				}
 			case *ast.TemplateNode:
 				return analyzeNode(cs, v.Children()...)
 			case *ast.TernNode:
@@ -191,6 +209,7 @@ func analyzeNode(s *scope, node ...ast.Node) error {
 				*ast.IntNode,
 				*ast.DebuggerNode,
 				*ast.IdentNode,
+				*ast.MsgHtmlTagNode,
 				nil:
 			default:
 				return fmt.Errorf("unexpected node type: %T", node)

@@ -193,7 +193,7 @@ func TestAnalyzeParamHierarchy(t *testing.T) {
 				{namespace test}
 				/**
 				* @param list
-=				*/
+				*/
 				{template .main}
 					{foreach $item in $list}
 						{$item.field}
@@ -205,6 +205,44 @@ func TestAnalyzeParamHierarchy(t *testing.T) {
 			expected: map[string]interface{}{
 				"list": map[string]interface{}{
 					"field": map[string]interface{}{
+						"*": struct{}{},
+					},
+				},
+			},
+		},
+		{
+			name: "handles switch statements",
+			templates: map[string]string{
+				"test.soy": `
+				{namespace test}
+				/**
+				* @param a
+				*/
+				{template .main}
+					{switch $a.b}
+						{case 'value1'}
+							{$a.value1}
+						{case 'value2'}
+							{$a.value2}
+						{default}
+							{$a.default}
+					{/switch}
+				{/template}
+			`,
+			},
+			templateName: "test.main",
+			expected: map[string]interface{}{
+				"a": map[string]interface{}{
+					"b": map[string]interface{}{
+						"*": struct{}{},
+					},
+					"value1": map[string]interface{}{
+						"*": struct{}{},
+					},
+					"value2": map[string]interface{}{
+						"*": struct{}{},
+					},
+					"default": map[string]interface{}{
 						"*": struct{}{},
 					},
 				},
