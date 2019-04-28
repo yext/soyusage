@@ -44,7 +44,7 @@ type scope struct {
 	templateName string
 	parameters   Params
 	variables    map[string][]*Param
-	leafUsage    Usage
+	leafUsage    UsageType
 }
 
 // inner creates a new scope "inside" the current scope
@@ -65,7 +65,7 @@ func (s *scope) inner() *scope {
 	return out
 }
 
-func analyzeNodeSetUsage(s *scope, usage Usage, node ...ast.Node) error {
+func analyzeNodeSetUsage(s *scope, usage UsageType, node ...ast.Node) error {
 	cs := s.inner()
 	cs.leafUsage = usage
 	return analyzeNode(cs, node...)
@@ -319,9 +319,14 @@ func recordDataRef(
 			}
 		}
 		templateUsage := param.Usage[s.templateName]
-		param.Usage[s.templateName] = append(templateUsage, s.leafUsage)
+		param.Usage[s.templateName] = append(templateUsage, Usage{
+			Template: s.templateName,
+			Type:     s.leafUsage,
+			Node:     node,
+		})
 		out = append(out, param)
 	}
+
 	return out, nil
 }
 

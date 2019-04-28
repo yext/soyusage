@@ -1,21 +1,51 @@
 package soyusage
 
-type Usage int
+import "github.com/robfig/soy/ast"
 
 const (
-	UsageFull Usage = iota
+	usageUndefined = iota
+	// UsageFull indicates that the whole parameter is used
+	// This usually means that it's value was printed.
+	UsageFull
+	// UsageUnknown indicates that the parameter's usage cannot be
+	// known. This usually means that it was used as a parameter
+	// to a function.
 	UsageUnknown
+	// UsageReference indicates that the parameter was used in a reference,
+	// such as a parameter to a call or assigned to a variable.
 	UsageReference
 )
 
-type UsageByTemplate map[string][]Usage
+// Usage provides details of the manner in which a param was used.
+type (
+	// Params specifies a collection of parameters, organized by name.
+	Params map[string]*Param
 
-type Params map[string]*Param
+	// Param defines a single parameter, or field within a parent parameter.
+	// It contains details of how the parameter was used within the analyzed templates.
+	Param struct {
+		// Children identifies all fields within this Param
+		Children Params
+		// Usage describes how this parameter or field was used
+		Usage UsageByTemplate
+	}
 
-type Param struct {
-	Children Params
-	Usage    UsageByTemplate
-}
+	// UsageType specifies the manner in which a parameter was used.
+	UsageType int
+
+	Usage struct {
+		// Type indicates how the parameter was used, see constants for details.
+		Type UsageType
+		// Template provides the name of the template containing the usage.
+		Template string
+		// Node contains a reference to the AST node where the param was referenced.
+		// This can be used with the Template name and template.Registry to identify
+		// where in the file the usage occurred.
+		Node ast.Node
+	}
+	// UsageByTemplate organizes usages by where they occurred
+	UsageByTemplate map[string][]Usage
+)
 
 func newParam() *Param {
 	return &Param{

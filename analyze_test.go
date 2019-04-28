@@ -275,7 +275,7 @@ func mapUsage(params soyusage.Params) map[string]interface{} {
 		mappedParam := mapUsage(param.Children)
 		for _, usages := range param.Usage {
 			for _, usage := range usages {
-				switch usage {
+				switch usage.Type {
 				case soyusage.UsageFull:
 					mappedParam["*"] = struct{}{}
 				case soyusage.UsageUnknown:
