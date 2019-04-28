@@ -94,7 +94,12 @@ func analyzeNode(s *scope, node ...ast.Node) error {
 			case *ast.EqNode:
 				return analyzeNodeSetUsage(cs, UsageFull, v.Children()...)
 			case *ast.ForNode:
-				return errors.New("not implemented")
+				// Clear any existing variable value
+				cs.variables[v.Var] = nil
+				if err := mapVariable(cs, v.Var, v.List); err != nil {
+					return err
+				}
+				return analyzeNode(cs, v.Body)
 			case *ast.FunctionNode:
 				return analyzeNodeSetUsage(cs, UsageUnknown, v.Children()...)
 			case *ast.GlobalNode:
