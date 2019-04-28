@@ -1,0 +1,227 @@
+package soyusage_test
+
+import (
+	"testing"
+
+	"github.com/kr/pretty"
+	"github.com/robfig/soy"
+	"github.com/theothertomelliott/must"
+	"github.com/theothertomelliott/soyusage"
+)
+
+func TestAnalyzeParamHierarchy(t *testing.T) {
+	var tests = []struct {
+		name         string
+		templates    map[string]string
+		templateName string
+		expected     map[string]interface{}
+		expectedErr  error
+	}{
+		{
+			name: "printed parameters give full usage",
+			templates: map[string]string{
+				"test.soy": `
+				{namespace test}
+				/**
+				* @param a
+				*/
+				{template .main}
+					{$a.b | json}
+				{/template}
+			`,
+			},
+			templateName: "test.main",
+			expected: map[string]interface{}{
+				"a": map[string]interface{}{
+					"b": map[string]interface{}{
+						"*": struct{}{},
+					},
+				},
+			},
+		},
+		{
+			name: "function gives unknown usage",
+			templates: map[string]string{
+				"test.soy": `
+				{namespace test}
+				/**
+				* @param a
+				*/
+				{template .main}
+					{myFunc($a.b)}
+				{/template}
+			`,
+			},
+			templateName: "test.main",
+			expected: map[string]interface{}{
+				"a": map[string]interface{}{
+					"b": map[string]interface{}{
+						"?": struct{}{},
+					},
+				},
+			},
+		},
+		{
+			name: "let creating alias",
+			templates: map[string]string{
+				"test.soy": `
+				{namespace test}
+				/**
+				* @param a
+				* @param b
+				* @param c
+				*/
+				{template .main}
+					{let $x: $a/}
+					{let $y: $b ?: $c/}
+					{let $w: $a ? $b: $c/}
+					{let $u}
+						text {$c.e}
+					{/let}
+					{$x.z}
+					{$y.z}
+					{$w.v}
+					{$u}
+				{/template}
+			`,
+			},
+			templateName: "test.main",
+			expected: map[string]interface{}{
+				"a": map[string]interface{}{
+					"*": struct{}{},
+					"z": map[string]interface{}{
+						"*": struct{}{},
+					},
+				},
+				"b": map[string]interface{}{
+					"z": map[string]interface{}{
+						"*": struct{}{},
+					},
+					"v": map[string]interface{}{
+						"*": struct{}{},
+					},
+				},
+				"c": map[string]interface{}{
+					"e": map[string]interface{}{
+						"*": struct{}{},
+					},
+					"z": map[string]interface{}{
+						"*": struct{}{},
+					},
+					"v": map[string]interface{}{
+						"*": struct{}{},
+					},
+				},
+			},
+		},
+		{
+			name: "assignment doesn't leak up",
+			templates: map[string]string{
+				"test.soy": `
+				{namespace test}
+				/**
+				* @param a
+				* @param? b
+				*/
+				{template .main}
+					{let $x: $a/}
+					{if true}
+						{let $x: $b/}
+						{$x.y}
+					{/if}
+					{$x.z}
+				{/template}
+			`,
+			},
+			templateName: "test.main",
+			expected: map[string]interface{}{
+				"a": map[string]interface{}{
+					"z": map[string]interface{}{
+						"*": struct{}{},
+					},
+				},
+				"b": map[string]interface{}{
+					"y": map[string]interface{}{
+						"*": struct{}{},
+					},
+				},
+			},
+		},
+		{
+			name: "call params are recorded",
+			templates: map[string]string{
+				"test.soy": `
+				{namespace test}
+				/**
+				* @param data
+				* @param param
+				*/
+				{template .main}
+					{call .callee data="$data"}
+						{param passByParam: $param/}
+					{/call}
+				{/template}
+
+				/**
+				* @param passByParam
+				* @param? dataChild
+				*/
+				{template .callee}
+					{$passByParam.paramChild}
+					{$dataChild}
+				{/template}
+			`,
+			},
+			templateName: "test.main",
+			expected: map[string]interface{}{
+				"data": map[string]interface{}{
+					"dataChild": map[string]interface{}{
+						"*": struct{}{},
+					},
+				},
+				"param": map[string]interface{}{
+					"paramChild": map[string]interface{}{
+						"*": struct{}{},
+					},
+				},
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			bundle := soy.NewBundle()
+			for name, content := range test.templates {
+				bundle = bundle.AddTemplateString(name, content)
+			}
+			registry, err := bundle.Compile()
+			if err != nil {
+				t.Fatal(err)
+			}
+			got, err := soyusage.AnalyzeTemplate(test.templateName, registry)
+			must.BeEqual(t, test.expected, mapUsage(got))
+			must.BeEqualErrors(t, test.expectedErr, err)
+			if t.Failed() {
+				t.Log(pretty.Sprint(got))
+			}
+		})
+	}
+}
+
+func mapUsage(params soyusage.Params) map[string]interface{} {
+	var out = make(map[string]interface{})
+	for name, param := range params {
+		mappedParam := mapUsage(param.Children)
+		for _, usages := range param.Usage {
+			for _, usage := range usages {
+				switch usage {
+				case soyusage.UsageFull:
+					mappedParam["*"] = struct{}{}
+				case soyusage.UsageUnknown:
+					mappedParam["?"] = struct{}{}
+				}
+			}
+		}
+		out[name] = mappedParam
+	}
+	return out
+}

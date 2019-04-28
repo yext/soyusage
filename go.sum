@@ -1,0 +1,15 @@
+github.com/fsnotify/fsnotify v1.4.7 h1:IXs+QLmnXW2CcXuY+8Mzv/fWEsPGWxqefPtCP5CnV9I=
+github.com/fsnotify/fsnotify v1.4.7/go.mod h1:jwhsz4b93w/PPRr/qN1Yymfu8t87LnFCMoQvtojpjFo=
+github.com/kr/pretty v0.1.0 h1:L/CwN0zerZDmRFUapSPitk6f+Q3+0za1rQkzVuMiMFI=
+github.com/kr/pretty v0.1.0/go.mod h1:dAy3ld7l9f0ibDNOQOHHMYYIIbhfbHSm3C4ZsoJORNo=
+github.com/kr/pty v1.1.1/go.mod h1:pFQYn66WHrOpPYNljwOMqo10TkYh1fy3cYio2l3bCsQ=
+github.com/kr/text v0.1.0 h1:45sCR5RtlFHMR4UwH9sdQ5TC8v0qDQCHnXt+kaKSTVE=
+github.com/kr/text v0.1.0/go.mod h1:4Jbv+DJW3UT/LiOwJeYQe1efqtUx/iVham/4vfdArNI=
+github.com/kylelemons/godebug v0.0.0-20170820004349-d65d576e9348 h1:MtvEpTB6LX3vkb4ax0b5D2DHbNAUsen0Gx5wZoq3lV4=
+github.com/kylelemons/godebug v0.0.0-20170820004349-d65d576e9348/go.mod h1:B69LEHPfb2qLo0BaaOLcbitczOKLWTsrBG9LczfCD4k=
+github.com/robfig/soy v0.0.0-20190301161207-6b9d0368d426 h1:JjleeXzkHpcebPftrdF+xkSCglWHAeA8BGMyTBzs0F0=
+github.com/robfig/soy v0.0.0-20190301161207-6b9d0368d426/go.mod h1:dtQf30vFRESmRbfRJTwRYCwJiH1iWFrjYE+RRNy+Hzo=
+github.com/theothertomelliott/must v0.0.0-20180901182306-492b25fad7e5 h1:wiHTVDN3/H3LaCzpWaM+wAqVHzQiw3nLfhDcF1CKB6Q=
+github.com/theothertomelliott/must v0.0.0-20180901182306-492b25fad7e5/go.mod h1:msE31Uogkj1CZtu/4lKS7OlnBuBzGO9lH5PZ/BvGKDk=
+golang.org/x/sys v0.0.0-20190426135247-a129542de9ae h1:mQLHiymj/JXKnnjc62tb7nD5pZLs940/sXJu+Xp3DBA=
+golang.org/x/sys v0.0.0-20190426135247-a129542de9ae/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
