@@ -73,9 +73,8 @@ func analyzeNode(s *scope, usageType UsageType, node ...ast.Node) error {
 			case *ast.CssNode:
 				return analyzeNode(s, UsageFull, v.Children()...)
 			case *ast.DataRefNode:
-				_, err := recordDataRef(cs, usageType, v)
-				if err != nil {
-					return wrapError(s, v, err)
+				if _, err := recordDataRef(cs, usageType, v); err != nil {
+					return err
 				}
 			case *ast.DivNode:
 				return analyzeNode(cs, UsageFull, v.Children()...)
@@ -87,7 +86,7 @@ func analyzeNode(s *scope, usageType UsageType, node ...ast.Node) error {
 				// Clear any existing variable value
 				cs.variables[v.Var] = nil
 				if err := mapVariable(cs, v.Var, v.List); err != nil {
-					return wrapError(s, v, err)
+					return err
 				}
 				return analyzeNode(cs, usageType, v.Body)
 			case *ast.FunctionNode:
@@ -102,11 +101,11 @@ func analyzeNode(s *scope, usageType UsageType, node ...ast.Node) error {
 				for _, condition := range v.Conds {
 					err := analyzeNode(cs, UsageFull, condition.Cond)
 					if err != nil {
-						return wrapError(s, condition.Cond, err)
+						return err
 					}
 					err = analyzeNode(s, usageType, condition.Body)
 					if err != nil {
-						return wrapError(s, condition.Body, err)
+						return err
 					}
 				}
 				return nil
@@ -129,7 +128,7 @@ func analyzeNode(s *scope, usageType UsageType, node ...ast.Node) error {
 			case *ast.MapLiteralNode:
 				for _, node := range v.Items {
 					if err := analyzeNode(cs, usageType, node); err != nil {
-						return wrapError(s, node, err)
+						return err
 					}
 				}
 			case *ast.ModNode:
@@ -142,11 +141,11 @@ func analyzeNode(s *scope, usageType UsageType, node ...ast.Node) error {
 				return analyzeNode(cs, usageType, v.Body)
 			case *ast.MsgPluralNode:
 				if err := analyzeNode(cs, UsageFull, v.Value); err != nil {
-					return wrapError(s, v.Value, err)
+					return err
 				}
 				for _, c := range v.Cases {
 					if err := analyzeNode(cs, usageType, c.Body); err != nil {
-						return wrapError(s, c.Body, err)
+						return err
 					}
 				}
 			case *ast.MulNode:
@@ -162,12 +161,12 @@ func analyzeNode(s *scope, usageType UsageType, node ...ast.Node) error {
 			case *ast.PrintNode:
 				err := analyzeNode(cs, UsageFull, v.Arg)
 				if err != nil {
-					return wrapError(s, node, err)
+					return err
 				}
 				for _, directive := range v.Directives {
 					err := analyzeNode(cs, UsageUnknown, directive)
 					if err != nil {
-						return wrapError(s, directive, err)
+						return err
 					}
 				}
 			case *ast.SwitchNode:
@@ -203,12 +202,12 @@ func analyzeNode(s *scope, usageType UsageType, node ...ast.Node) error {
 				*ast.MsgHtmlTagNode,
 				nil:
 			default:
-				return newErrorf(s, node, "unexpected node type: %T", node)
+				return fmt.Errorf("unexpected node type: %T", node)
 			}
 			return nil
 		}()
 		if err != nil {
-			return err
+			return wrapError(s, node, err)
 		}
 	}
 
@@ -332,7 +331,7 @@ func mapVariable(
 ) error {
 	variables, err := extractVariables(s, name, node)
 	if err != nil {
-		return err
+		return wrapError(s, node, err)
 	}
 	for key, params := range variables {
 		s.variables[key] = append(s.variables[key], params...)
