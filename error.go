@@ -29,6 +29,9 @@ func newErrorf(s *scope, node ast.Node, message string, args ...interface{}) *us
 }
 
 func wrapError(s *scope, node ast.Node, err error) *usageError {
+	if err == nil {
+		return nil
+	}
 	return &usageError{
 		cause: err,
 
@@ -40,9 +43,17 @@ func wrapError(s *scope, node ast.Node, err error) *usageError {
 
 func (u *usageError) Error() string {
 	if u.cause != nil {
-		return u.cause.Error()
+		return fmt.Sprintf("%v\n%v", u.cause.Error(), u.posText())
 	}
-	return fmt.Sprintf("%s (line %d, col %d): %v\n%v", u.filename(), u.row(), u.col(), u.message, u.node)
+	return fmt.Sprintf("%v (%v)", u.message, u.posText())
+}
+
+func (u *usageError) posText() string {
+	var shortNode = fmt.Sprint(u.node)
+	if len(shortNode) > 10 {
+		shortNode = shortNode[:10]
+	}
+	return fmt.Sprintf("%s, line %d, col %d near %q", u.filename(), u.row(), u.col(), shortNode)
 }
 
 func (u *usageError) filename() string {
