@@ -12,14 +12,14 @@ func ExampleAnalyzeTemplate() {
 	bundle = bundle.AddTemplateString(
 		"example.soy",
 		`
-		{namespace example}
-		/**
-		* @param a
-		*/
-		{template .main}
-			{$a.b}
-			{myFunc($a.c)}
-		{/template}
+{namespace example}
+/**
+* @param a
+*/
+{template .main}
+	{$a.b}
+	{myFunc($a.c)}
+{/template}
 		`,
 	)
 	registry, _ := bundle.Compile()
