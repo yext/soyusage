@@ -7,6 +7,8 @@ import (
 	"github.com/robfig/soy/template"
 )
 
+// AnalyzeTemplate walks the AST for the specified template and outputs a parameter
+// tree defining where and how those parameters are used.
 func AnalyzeTemplate(name string, registry *template.Registry) (Params, error) {
 	template, found := registry.Template(name)
 	if !found {
