@@ -42,17 +42,17 @@ func (u *usageError) Error() string {
 	if u.cause != nil {
 		return u.cause.Error()
 	}
-	return fmt.Sprintf("%s (line %d, col %d): %v\n%v", u.Filename(), u.Row(), u.Col(), u.message, u.node)
+	return fmt.Sprintf("%s (line %d, col %d): %v\n%v", u.filename(), u.row(), u.col(), u.message, u.node)
 }
 
-func (u *usageError) Filename() string {
+func (u *usageError) filename() string {
 	return u.registry.Filename(u.template)
 }
 
-func (u *usageError) Col() int {
+func (u *usageError) col() int {
 	return u.registry.ColNumber(u.template, u.node)
 }
 
-func (u *usageError) Row() int {
+func (u *usageError) row() int {
 	return u.registry.LineNumber(u.template, u.node)
 }
