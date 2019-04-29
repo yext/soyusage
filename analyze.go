@@ -18,10 +18,9 @@ func AnalyzeTemplate(name string, registry *template.Registry) (Params, error) {
 		templateName: name,
 		parameters:   make(Params),
 		variables:    make(map[string][]*Param),
-		leafUsage:    UsageFull,
 	}
 
-	err := analyzeNode(s, template.Node)
+	err := analyzeNode(s, usageUndefined, template.Node)
 	if err != nil {
 		return nil, err
 	}
@@ -44,7 +43,6 @@ type scope struct {
 	templateName string
 	parameters   Params
 	variables    map[string][]*Param
-	leafUsage    UsageType
 }
 
 // inner creates a new scope "inside" the current scope
@@ -55,7 +53,6 @@ func (s *scope) inner() *scope {
 		registry:     s.registry,
 		templateName: s.templateName,
 		parameters:   s.parameters,
-		leafUsage:    s.leafUsage,
 		variables:    make(map[string][]*Param),
 	}
 
@@ -65,13 +62,7 @@ func (s *scope) inner() *scope {
 	return out
 }
 
-func analyzeNodeSetUsage(s *scope, usage UsageType, node ...ast.Node) error {
-	cs := s.inner()
-	cs.leafUsage = usage
-	return analyzeNode(cs, node...)
-}
-
-func analyzeNode(s *scope, node ...ast.Node) error {
+func analyzeNode(s *scope, usageType UsageType, node ...ast.Node) error {
 	// Create a new scope for this set of nodes
 	cs := s.inner()
 	for _, node := range node {
@@ -80,125 +71,125 @@ func analyzeNode(s *scope, node ...ast.Node) error {
 			case *ast.CallNode:
 				return analyzeCall(cs, v)
 			case *ast.CssNode:
-				return analyzeNode(s, v.Children()...)
+				return analyzeNode(s, UsageFull, v.Children()...)
 			case *ast.DataRefNode:
-				_, err := recordDataRef(cs, v)
+				_, err := recordDataRef(cs, usageType, v)
 				if err != nil {
-					return err
+					return wrapError(s, v, err)
 				}
 			case *ast.DivNode:
-				return analyzeNodeSetUsage(cs, UsageFull, v.Children()...)
+				return analyzeNode(cs, UsageFull, v.Children()...)
 			case *ast.ElvisNode:
-				return analyzeNode(cs, v.Arg1, v.Arg2)
+				return analyzeNode(cs, usageType, v.Arg1, v.Arg2)
 			case *ast.EqNode:
-				return analyzeNodeSetUsage(cs, UsageFull, v.Children()...)
+				return analyzeNode(cs, UsageFull, v.Children()...)
 			case *ast.ForNode:
 				// Clear any existing variable value
 				cs.variables[v.Var] = nil
 				if err := mapVariable(cs, v.Var, v.List); err != nil {
-					return err
+					return wrapError(s, v, err)
 				}
-				return analyzeNode(cs, v.Body)
+				return analyzeNode(cs, usageType, v.Body)
 			case *ast.FunctionNode:
-				return analyzeNodeSetUsage(cs, UsageUnknown, v.Children()...)
+				return analyzeNode(cs, UsageUnknown, v.Children()...)
 			case *ast.GlobalNode:
 				// Globals assign primitive values and can be ignored for analyzing parameters
 			case *ast.GtNode:
-				return analyzeNodeSetUsage(cs, UsageFull, v.Arg1, v.Arg2)
+				return analyzeNode(cs, UsageFull, v.Arg1, v.Arg2)
 			case *ast.GteNode:
-				return analyzeNodeSetUsage(cs, UsageFull, v.Arg1, v.Arg2)
+				return analyzeNode(cs, UsageFull, v.Arg1, v.Arg2)
 			case *ast.IfNode:
 				for _, condition := range v.Conds {
-					err := analyzeNodeSetUsage(cs, UsageFull, condition.Cond)
+					err := analyzeNode(cs, UsageFull, condition.Cond)
 					if err != nil {
-						return err
+						return wrapError(s, condition.Cond, err)
 					}
-					err = analyzeNode(s, condition.Body)
+					err = analyzeNode(s, usageType, condition.Body)
 					if err != nil {
-						return err
+						return wrapError(s, condition.Body, err)
 					}
 				}
 				return nil
 			case *ast.LetContentNode:
-				return analyzeNodeSetUsage(cs, UsageFull, v.Body)
+				return analyzeNode(cs, UsageFull, v.Body)
 			case *ast.LetValueNode:
 				// Clear any existing variable value
 				cs.variables[v.Name] = nil
 				return mapVariable(cs, v.Name, v.Expr)
 			case *ast.ListLiteralNode:
-				return analyzeNode(cs, v.Items...)
+				return analyzeNode(cs, usageType, v.Items...)
 			case *ast.ListNode:
-				return analyzeNode(cs, v.Children()...)
+				return analyzeNode(cs, usageType, v.Children()...)
 			case *ast.LogNode:
-				return analyzeNodeSetUsage(cs, UsageFull, v.Body)
+				return analyzeNode(cs, UsageFull, v.Body)
 			case *ast.LtNode:
-				return analyzeNodeSetUsage(cs, UsageFull, v.Arg1, v.Arg2)
+				return analyzeNode(cs, UsageFull, v.Arg1, v.Arg2)
 			case *ast.LteNode:
-				return analyzeNodeSetUsage(cs, UsageFull, v.Arg1, v.Arg2)
+				return analyzeNode(cs, UsageFull, v.Arg1, v.Arg2)
 			case *ast.MapLiteralNode:
 				for _, node := range v.Items {
-					if err := analyzeNode(cs, node); err != nil {
-						return err
+					if err := analyzeNode(cs, usageType, node); err != nil {
+						return wrapError(s, node, err)
 					}
 				}
 			case *ast.ModNode:
-				return analyzeNodeSetUsage(cs, UsageFull, v.Arg1, v.Arg2)
+				return analyzeNode(cs, UsageFull, v.Arg1, v.Arg2)
 			case *ast.MsgNode:
-				return analyzeNode(cs, v.Body)
+				return analyzeNode(cs, usageType, v.Body)
 			case *ast.MsgPlaceholderNode:
-				return analyzeNode(cs, v.Body)
+				return analyzeNode(cs, usageType, v.Body)
 			case *ast.MsgPluralCaseNode:
-				return analyzeNode(cs, v.Body)
+				return analyzeNode(cs, usageType, v.Body)
 			case *ast.MsgPluralNode:
-				if err := analyzeNodeSetUsage(cs, UsageFull, v.Value); err != nil {
-					return err
+				if err := analyzeNode(cs, UsageFull, v.Value); err != nil {
+					return wrapError(s, v.Value, err)
 				}
 				for _, c := range v.Cases {
-					if err := analyzeNode(cs, c.Body); err != nil {
-						return err
+					if err := analyzeNode(cs, usageType, c.Body); err != nil {
+						return wrapError(s, c.Body, err)
 					}
 				}
 			case *ast.MulNode:
-				return analyzeNodeSetUsage(cs, UsageFull, v.Arg1, v.Arg2)
+				return analyzeNode(cs, UsageFull, v.Arg1, v.Arg2)
 			case *ast.NegateNode:
-				return analyzeNodeSetUsage(cs, UsageFull, v.Arg)
+				return analyzeNode(cs, UsageFull, v.Arg)
 			case *ast.NotEqNode:
-				return analyzeNodeSetUsage(cs, UsageFull, v.Arg1, v.Arg2)
+				return analyzeNode(cs, UsageFull, v.Arg1, v.Arg2)
 			case *ast.NotNode:
-				return analyzeNodeSetUsage(cs, UsageFull, v.Arg)
+				return analyzeNode(cs, UsageFull, v.Arg)
 			case *ast.PrintDirectiveNode:
-				return analyzeNode(cs, v.Children()...)
+				return analyzeNode(cs, usageType, v.Children()...)
 			case *ast.PrintNode:
-				err := analyzeNodeSetUsage(cs, UsageFull, v.Arg)
+				err := analyzeNode(cs, UsageFull, v.Arg)
 				if err != nil {
-					return err
+					return wrapError(s, node, err)
 				}
 				for _, directive := range v.Directives {
-					err := analyzeNodeSetUsage(cs, UsageUnknown, directive)
+					err := analyzeNode(cs, UsageUnknown, directive)
 					if err != nil {
-						return err
+						return wrapError(s, directive, err)
 					}
 				}
 			case *ast.SwitchNode:
-				if err := analyzeNodeSetUsage(cs, UsageFull, v.Value); err != nil {
+				if err := analyzeNode(cs, UsageFull, v.Value); err != nil {
 					return err
 				}
 				for _, c := range v.Cases {
-					if err := analyzeNodeSetUsage(cs, UsageFull, c.Values...); err != nil {
+					if err := analyzeNode(cs, UsageFull, c.Values...); err != nil {
 						return err
 					}
-					if err := analyzeNode(cs, c.Body); err != nil {
+					if err := analyzeNode(cs, usageType, c.Body); err != nil {
 						return err
 					}
 				}
 			case *ast.TemplateNode:
-				return analyzeNode(cs, v.Children()...)
+				return analyzeNode(cs, usageType, v.Children()...)
 			case *ast.TernNode:
-				return analyzeNode(cs, v.Arg1, v.Arg2, v.Arg3)
+				return analyzeNode(cs, usageType, v.Arg1, v.Arg2, v.Arg3)
 			case *ast.SubNode:
-				return analyzeNodeSetUsage(cs, UsageFull, v.Arg1, v.Arg2)
+				return analyzeNode(cs, UsageFull, v.Arg1, v.Arg2)
 			case *ast.OrNode:
-				return analyzeNodeSetUsage(cs, UsageFull, v.Arg1, v.Arg2)
+				return analyzeNode(cs, UsageFull, v.Arg1, v.Arg2)
 			case
 				*ast.StringNode,
 				*ast.RawTextNode,
@@ -212,7 +203,7 @@ func analyzeNode(s *scope, node ...ast.Node) error {
 				*ast.MsgHtmlTagNode,
 				nil:
 			default:
-				return fmt.Errorf("unexpected node type: %T", node)
+				return newErrorf(s, node, "unexpected node type: %T", node)
 			}
 			return nil
 		}()
@@ -231,7 +222,7 @@ func analyzeCall(
 	var scopes []*scope
 	template, found := s.registry.Template(call.Name)
 	if !found {
-		return fmt.Errorf("template not found: %s", call.Name)
+		return newErrorf(s, call, "template not found: %s", call.Name)
 	}
 
 	if !call.AllData {
@@ -244,7 +235,7 @@ func analyzeCall(
 	if call.Data != nil {
 		variables, err := extractVariables(s, "data", call.Data)
 		if err != nil {
-			return err
+			return wrapError(s, call.Data, err)
 		}
 		for _, param := range variables["data"] {
 			dataScope := s.inner()
@@ -258,14 +249,14 @@ func analyzeCall(
 		for _, parameter := range call.Params {
 			switch v := parameter.(type) {
 			case *ast.CallParamContentNode:
-				err := analyzeNodeSetUsage(s, UsageFull, v.Content)
+				err := analyzeNode(s, UsageFull, v.Content)
 				if err != nil {
-					return err
+					return wrapError(s, parameter, err)
 				}
 			case *ast.CallParamValueNode:
 				variables, err := extractVariables(s, v.Key, v.Value)
 				if err != nil {
-					return err
+					return wrapError(s, parameter, err)
 				}
 				for key, params := range variables {
 					scope.variables[key] = params
@@ -273,9 +264,8 @@ func analyzeCall(
 			}
 		}
 		scope.templateName = call.Name
-		err := analyzeNode(scope, template.Node)
-		if err != nil {
-			return err
+		if err := analyzeNode(scope, usageUndefined, template.Node); err != nil {
+			return wrapError(s, template.Node, err)
 		}
 	}
 	return nil
@@ -298,11 +288,16 @@ func findParams(
 
 func recordDataRef(
 	s *scope,
+	usageType UsageType,
 	node *ast.DataRefNode,
 ) ([]*Param, error) {
+	if usageType == usageUndefined {
+		return nil, newErrorf(s, node, "usage type was not set")
+	}
+
 	params, err := findParams(s, node.Key)
 	if err != nil {
-		return nil, err
+		return nil, wrapError(s, node, err)
 	}
 
 	var out []*Param
@@ -321,7 +316,7 @@ func recordDataRef(
 		templateUsage := param.Usage[s.templateName]
 		param.Usage[s.templateName] = append(templateUsage, Usage{
 			Template: s.templateName,
-			Type:     s.leafUsage,
+			Type:     usageType,
 			Node:     node,
 		})
 		out = append(out, param)
@@ -353,42 +348,40 @@ func extractVariables(
 	var out = make(map[string][]*Param)
 	switch v := node.(type) {
 	case *ast.DataRefNode:
-		rs := s.inner()
-		rs.leafUsage = UsageReference
-		p, err := recordDataRef(rs, v)
+		p, err := recordDataRef(s, UsageReference, v)
 		if err != nil {
-			return nil, err
+			return nil, wrapError(s, node, err)
 		}
 		out[name] = append(out[name], p...)
 	case *ast.ElvisNode:
 		v1, err := extractVariables(s, name, v.Arg1)
 		if err != nil {
-			return nil, err
+			return nil, wrapError(s, node, err)
 		}
 		for key, params := range v1 {
 			out[key] = append(out[key], params...)
 		}
 		v2, err := extractVariables(s, name, v.Arg2)
 		if err != nil {
-			return nil, err
+			return nil, wrapError(s, node, err)
 		}
 		for key, params := range v2 {
 			out[key] = append(out[key], params...)
 		}
 	case *ast.TernNode:
-		if err := analyzeNode(s, v.Arg1); err != nil {
-			return nil, err
+		if err := analyzeNode(s, UsageFull, v.Arg1); err != nil {
+			return nil, wrapError(s, node, err)
 		}
 		v1, err := extractVariables(s, name, v.Arg2)
 		if err != nil {
-			return nil, err
+			return nil, wrapError(s, node, err)
 		}
 		for key, params := range v1 {
 			out[key] = append(out[key], params...)
 		}
 		v2, err := extractVariables(s, name, v.Arg3)
 		if err != nil {
-			return nil, err
+			return nil, wrapError(s, node, err)
 		}
 		for key, params := range v2 {
 			out[key] = append(out[key], params...)
@@ -398,8 +391,8 @@ func extractVariables(
 			Children() []ast.Node
 		}
 		if parent, hasChildren := node.(withChildren); hasChildren {
-			if err := analyzeNode(s, parent.Children()...); err != nil {
-				return nil, err
+			if err := analyzeNode(s, usageUndefined, parent.Children()...); err != nil {
+				return nil, wrapError(s, node, err)
 			}
 		}
 
