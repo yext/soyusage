@@ -115,6 +115,32 @@ func TestAnalyzeParamHierarchy(t *testing.T) {
 			},
 		},
 		{
+			name: "supports concatenation in let",
+			templates: map[string]string{
+				"test.soy": `
+				{namespace test}
+				/**
+				* @param a
+				*/
+				{template .main}
+					{let $z: $a.b + ' ' + $a.c /}
+					{$z}
+				{/template}
+			`,
+			},
+			templateName: "test.main",
+			expected: map[string]interface{}{
+				"a": map[string]interface{}{
+					"b": map[string]interface{}{
+						"*": struct{}{},
+					},
+					"c": map[string]interface{}{
+						"*": struct{}{},
+					},
+				},
+			},
+		},
+		{
 			name: "assignment doesn't leak up",
 			templates: map[string]string{
 				"test.soy": `
@@ -181,6 +207,36 @@ func TestAnalyzeParamHierarchy(t *testing.T) {
 				},
 				"param": map[string]interface{}{
 					"paramChild": map[string]interface{}{
+						"*": struct{}{},
+					},
+				},
+			},
+		},
+		{
+			name: "call params with all",
+			templates: map[string]string{
+				"test.soy": `
+				{namespace test}
+				/**
+				* @param data
+				*/
+				{template .main}
+					{call .callee data="all"}
+					{/call}
+				{/template}
+
+				/**
+				* @param data
+				*/
+				{template .callee}
+					{$data.dataChild}
+				{/template}
+			`,
+			},
+			templateName: "test.main",
+			expected: map[string]interface{}{
+				"data": map[string]interface{}{
+					"dataChild": map[string]interface{}{
 						"*": struct{}{},
 					},
 				},

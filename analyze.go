@@ -70,6 +70,10 @@ func analyzeNode(s *scope, usageType UsageType, node ...ast.Node) error {
 	for _, node := range node {
 		err := func() error {
 			switch v := node.(type) {
+			case *ast.AddNode:
+				return analyzeNode(cs, UsageFull, v.Arg1, v.Arg2)
+			case *ast.AndNode:
+				return analyzeNode(cs, UsageFull, v.Arg1, v.Arg2)
 			case *ast.CallNode:
 				return analyzeCall(cs, v)
 			case *ast.CssNode:
@@ -226,12 +230,12 @@ func analyzeCall(
 		return newErrorf(s, call, "template not found: %s", call.Name)
 	}
 
+	callScope := s.inner()
 	if !call.AllData {
-		callScope := s.inner()
 		callScope.parameters = make(Params)
-		scopes = []*scope{
-			callScope,
-		}
+	}
+	scopes = []*scope{
+		callScope,
 	}
 	if call.Data != nil {
 		variables, err := extractVariables(s, "data", call.Data)
@@ -392,7 +396,7 @@ func extractVariables(
 			Children() []ast.Node
 		}
 		if parent, hasChildren := node.(withChildren); hasChildren {
-			if err := analyzeNode(s, usageUndefined, parent.Children()...); err != nil {
+			if err := analyzeNode(s, UsageFull, parent.Children()...); err != nil {
 				return nil, wrapError(s, node, err)
 			}
 		}
