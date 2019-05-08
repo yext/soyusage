@@ -41,10 +41,11 @@ func AnalyzeTemplate(name string, registry *template.Registry) (Params, error) {
 
 // scope represents the usage at the current position in the stack
 type scope struct {
-	registry     *template.Registry
-	templateName string
-	parameters   Params
-	variables    map[string][]*Param
+	registry      *template.Registry
+	templateName  string
+	templateStack []string
+	parameters    Params
+	variables     map[string][]*Param
 }
 
 // inner creates a new scope "inside" the current scope
@@ -52,10 +53,15 @@ type scope struct {
 // is created so assignments don't escape up the stack.
 func (s *scope) inner() *scope {
 	out := &scope{
-		registry:     s.registry,
-		templateName: s.templateName,
-		parameters:   s.parameters,
-		variables:    make(map[string][]*Param),
+		registry:      s.registry,
+		templateName:  s.templateName,
+		templateStack: nil,
+		parameters:    s.parameters,
+		variables:     make(map[string][]*Param),
+	}
+
+	for _, template := range s.templateStack {
+		out.templateStack = append(out.templateStack, template)
 	}
 
 	for name, params := range s.variables {
@@ -268,6 +274,17 @@ func analyzeCall(
 				}
 			}
 		}
+		scope.templateStack = append(scope.templateStack, scope.templateName)
+		var cycles int
+		for _, stackTemplate := range scope.templateStack {
+			if call.Name == stackTemplate {
+				cycles++
+			}
+
+			if cycles > 5 {
+				return nil
+			}
+		}
 		scope.templateName = call.Name
 		if err := analyzeNode(scope, usageUndefined, template.Node); err != nil {
 			return wrapError(s, template.Node, err)
@@ -308,15 +325,25 @@ func recordDataRef(
 	var out []*Param
 	for _, param := range params {
 		for _, accessNode := range node.Access {
+			name := ""
 			switch access := accessNode.(type) {
 			case *ast.DataRefKeyNode:
-				if _, exists := param.Children[access.Key]; !exists {
-					param.Children[access.Key] = newParam()
-				}
-				param = param.Children[access.Key]
+				name = access.Key
 			case *ast.DataRefIndexNode:
+				name = fmt.Sprint(access.Index)
 			case *ast.DataRefExprNode:
+				name = "[?]"
+				if _, isString := access.Arg.(*ast.StringNode); isString {
+					name = fmt.Sprint(access)
+				}
+				if _, isInt := access.Arg.(*ast.IntNode); isInt {
+					name = fmt.Sprint(access)
+				}
 			}
+			if _, exists := param.Children[name]; !exists {
+				param.Children[name] = newParam()
+			}
+			param = param.Children[name]
 		}
 		templateUsage := param.Usage[s.templateName]
 		param.Usage[s.templateName] = append(templateUsage, Usage{

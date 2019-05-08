@@ -40,6 +40,76 @@ func TestAnalyzeParamHierarchy(t *testing.T) {
 			},
 		},
 		{
+			name: "explicit map access is listed",
+			templates: map[string]string{
+				"test.soy": `
+				{namespace test}
+				/**
+				* @param a
+				*/
+				{template .main}
+					{$a['b'] | json}
+				{/template}
+			`,
+			},
+			templateName: "test.main",
+			expected: map[string]interface{}{
+				"a": map[string]interface{}{
+					"['b']": map[string]interface{}{
+						"*": struct{}{},
+					},
+				},
+			},
+		},
+		{
+			name: "explicit list access is listed",
+			templates: map[string]string{
+				"test.soy": `
+				{namespace test}
+				/**
+				* @param a
+				*/
+				{template .main}
+					{$a[5]?.c | json}
+				{/template}
+			`,
+			},
+			templateName: "test.main",
+			expected: map[string]interface{}{
+				"a": map[string]interface{}{
+					"[5]": map[string]interface{}{
+						"c": map[string]interface{}{
+							"*": struct{}{},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "dot indexes are handled",
+			templates: map[string]string{
+				"test.soy": `
+				{namespace test}
+				/**
+				* @param a
+				*/
+				{template .main}
+					{$a.5.c | json}
+				{/template}
+			`,
+			},
+			templateName: "test.main",
+			expected: map[string]interface{}{
+				"a": map[string]interface{}{
+					"5": map[string]interface{}{
+						"c": map[string]interface{}{
+							"*": struct{}{},
+						},
+					},
+				},
+			},
+		},
+		{
 			name: "function gives unknown usage",
 			templates: map[string]string{
 				"test.soy": `
@@ -299,6 +369,38 @@ func TestAnalyzeParamHierarchy(t *testing.T) {
 						"*": struct{}{},
 					},
 					"default": map[string]interface{}{
+						"*": struct{}{},
+					},
+				},
+			},
+		},
+		{
+			name: "handles call cycle",
+			templates: map[string]string{
+				"test.soy": `
+				{namespace test}
+				/**
+				* @param data
+				*/
+				{template .main}
+					{call .callee data="all"}
+					{/call}
+				{/template}
+
+				/**
+				* @param data
+				*/
+				{template .callee}
+					{$data.dataChild}
+					{call .callee data="all"}
+					{/call}
+				{/template}
+			`,
+			},
+			templateName: "test.main",
+			expected: map[string]interface{}{
+				"data": map[string]interface{}{
+					"dataChild": map[string]interface{}{
 						"*": struct{}{},
 					},
 				},
