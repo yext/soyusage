@@ -95,11 +95,22 @@ func analyzeNode(s *scope, usageType UsageType, node ...ast.Node) error {
 			case *ast.EqNode:
 				return analyzeNode(cs, UsageFull, v.Children()...)
 			case *ast.ForNode:
-				variables, err := extractVariables(s, v.List)
+				variables, err := extractVariables(cs, v.List)
 				if err != nil {
 					return wrapError(s, node, err)
 				}
 				cs.variables[v.Var] = variables
+				constants, err := constantValues(cs, v.List)
+				if err != nil {
+					return wrapError(s, node, err)
+				}
+				for _, value := range constants {
+					p := newParam()
+					p.constant = &constant{
+						stringValue: value,
+					}
+					cs.variables[v.Var] = append(cs.variables[v.Var], p)
+				}
 				return analyzeNode(cs, usageType, v.Body)
 			case *ast.FunctionNode:
 				return analyzeNode(cs, UsageUnknown, v.Children()...)
@@ -457,7 +468,6 @@ func extractVariables(
 	s *scope,
 	node ast.Node,
 ) ([]*Param, error) {
-	fmt.Println("extractVariables:", node)
 	var out []*Param
 	switch v := node.(type) {
 	case *ast.StringNode:
@@ -466,6 +476,22 @@ func extractVariables(
 			stringValue: v.Value,
 		}
 		out = append(out, p)
+	case *ast.ListLiteralNode:
+		for _, item := range v.Items {
+			p, err := extractVariables(s, item)
+			if err != nil {
+				return nil, wrapError(s, item, err)
+			}
+			out = append(out, p...)
+		}
+	case *ast.MapLiteralNode:
+		for _, item := range v.Items {
+			p, err := extractVariables(s, item)
+			if err != nil {
+				return nil, wrapError(s, item, err)
+			}
+			out = append(out, p...)
+		}
 	case *ast.DataRefNode:
 		p, err := recordDataRef(s, UsageReference, v)
 		if err != nil {

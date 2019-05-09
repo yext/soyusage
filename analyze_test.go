@@ -492,6 +492,13 @@ func TestAnalyzeParamHierarchy(t *testing.T) {
 					{if $profile[$textField]}
 						{$profile[$textField]}
 					{/if}
+					{let $list: [
+						'c_education',
+						'c_awards'
+					]/}
+					{foreach $item in $list}
+						{$profile[$item]}
+					{/foreach}
 				{/template}
 			`,
 			},
@@ -511,6 +518,43 @@ func TestAnalyzeParamHierarchy(t *testing.T) {
 						"*": struct{}{},
 					},
 					"c_lifeAbout": map[string]interface{}{
+						"*": struct{}{},
+					},
+					"c_education": map[string]interface{}{
+						"*": struct{}{},
+					},
+					"c_awards": map[string]interface{}{
+						"*": struct{}{},
+					},
+				},
+			},
+		},
+		{
+			name: "handles map literal inside list",
+			templates: map[string]string{
+				"test.soy": `
+				{namespace test}
+				/**
+				* @param profile
+				*/
+				{template .main}
+					{let $list: [
+						['field': 'c_education'],
+						['field': 'c_awards']
+					]/}
+					{foreach $item in $list}
+						{$profile[$item.field]}
+					{/foreach}
+				{/template}
+			`,
+			},
+			templateName: "test.main",
+			expected: map[string]interface{}{
+				"profile": map[string]interface{}{
+					"c_education": map[string]interface{}{
+						"*": struct{}{},
+					},
+					"c_awards": map[string]interface{}{
 						"*": struct{}{},
 					},
 				},
