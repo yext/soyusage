@@ -56,7 +56,7 @@ func TestAnalyzeParamHierarchy(t *testing.T) {
 			templateName: "test.main",
 			expected: map[string]interface{}{
 				"a": map[string]interface{}{
-					"['b']": map[string]interface{}{
+					"b": map[string]interface{}{
 						"d": map[string]interface{}{
 							"*": struct{}{},
 						},
@@ -82,7 +82,7 @@ func TestAnalyzeParamHierarchy(t *testing.T) {
 			templateName: "test.main",
 			expected: map[string]interface{}{
 				"a": map[string]interface{}{
-					"[?]": map[string]interface{}{
+					"?": map[string]interface{}{
 						"d": map[string]interface{}{
 							"*": struct{}{},
 						},
@@ -109,7 +109,7 @@ func TestAnalyzeParamHierarchy(t *testing.T) {
 			templateName: "test.main",
 			expected: map[string]interface{}{
 				"a": map[string]interface{}{
-					"[5]": map[string]interface{}{
+					"5": map[string]interface{}{
 						"c": map[string]interface{}{
 							"*": struct{}{},
 						},
@@ -433,6 +433,84 @@ func TestAnalyzeParamHierarchy(t *testing.T) {
 			expected: map[string]interface{}{
 				"data": map[string]interface{}{
 					"dataChild": map[string]interface{}{
+						"*": struct{}{},
+					},
+				},
+			},
+		},
+		{
+			name: "handles mapping of string values",
+			templates: map[string]string{
+				"test.soy": `
+				{namespace test}
+				/**
+				* @param profile
+				*/
+				{template .main}
+					{let $textField}
+						c_lifeAbout
+					{/let}
+					{let $textField2: 'c_other'/}
+					{$profile[$textField]}
+					{$profile[$textField2]}
+				{/template}
+			`,
+			},
+			templateName: "test.main",
+			expected: map[string]interface{}{
+				"profile": map[string]interface{}{
+					"c_other": map[string]interface{}{
+						"*": struct{}{},
+					},
+					"c_lifeAbout": map[string]interface{}{
+						"*": struct{}{},
+					},
+				},
+			},
+		},
+		{
+			name: "handles complex mapping",
+			templates: map[string]string{
+				"test.soy": `
+				{namespace test}
+				/**
+				* @param profile
+				* @param category
+				* @param about
+				*/
+				{template .main}
+					{let $textField}
+						{switch $category}
+							{case 'Auto'}
+								c_autoAbout
+							{case 'Home'}
+								c_homeAbout
+							{case $about}
+								c_lifeAbout
+						{/switch}
+					{/let}
+					{if $profile[$textField]}
+						{$profile[$textField]}
+					{/if}
+				{/template}
+			`,
+			},
+			templateName: "test.main",
+			expected: map[string]interface{}{
+				"category": map[string]interface{}{
+					"*": struct{}{},
+				},
+				"about": map[string]interface{}{
+					"*": struct{}{},
+				},
+				"profile": map[string]interface{}{
+					"c_autoAbout": map[string]interface{}{
+						"*": struct{}{},
+					},
+					"c_homeAbout": map[string]interface{}{
+						"*": struct{}{},
+					},
+					"c_lifeAbout": map[string]interface{}{
 						"*": struct{}{},
 					},
 				},

@@ -115,14 +115,15 @@ func analyzeNode(s *scope, usageType UsageType, node ...ast.Node) error {
 					if err != nil {
 						return err
 					}
-					err = analyzeNode(s, usageType, condition.Body)
+					err = analyzeNode(cs, usageType, condition.Body)
 					if err != nil {
 						return err
 					}
 				}
 				return nil
 			case *ast.LetContentNode:
-				return analyzeNode(cs, UsageFull, v.Body)
+				cs.variables[v.Name] = nil
+				return mapConstantVariable(cs, v.Name, v.Body)
 			case *ast.LetValueNode:
 				// Clear any existing variable value
 				cs.variables[v.Name] = nil
@@ -323,42 +324,97 @@ func recordDataRef(
 	}
 
 	var out []*Param
+
 	for _, param := range params {
-		for _, accessNode := range node.Access {
-			name := ""
-			switch access := accessNode.(type) {
-			case *ast.DataRefKeyNode:
-				name = access.Key
-			case *ast.DataRefIndexNode:
-				name = fmt.Sprint(access.Index)
-			case *ast.DataRefExprNode:
-				name = "[?]"
-				if _, isString := access.Arg.(*ast.StringNode); isString {
-					name = fmt.Sprint(access)
-				} else if _, isInt := access.Arg.(*ast.IntNode); isInt {
-					name = fmt.Sprint(access)
-				} else {
-					err := analyzeNode(s, UsageFull, access.Arg)
-					if err != nil {
-						return nil, wrapError(s, node, err)
-					}
-				}
-			}
-			if _, exists := param.Children[name]; !exists {
-				param.Children[name] = newParam()
-			}
-			param = param.Children[name]
+		// Skip constants
+		if param.isConstant() {
+			continue
 		}
-		templateUsage := param.Usage[s.templateName]
-		param.Usage[s.templateName] = append(templateUsage, Usage{
-			Template: s.templateName,
-			Type:     usageType,
-			Node:     node,
-		})
-		out = append(out, param)
+		leaves, err := recordDataRefAccess(s, usageType, param, node.Access)
+		if err != nil {
+			return nil, wrapError(s, node, err)
+		}
+
+		for _, leaf := range leaves {
+			templateUsage := leaf.Usage[s.templateName]
+			leaf.Usage[s.templateName] = append(templateUsage, Usage{
+				Template: s.templateName,
+				Type:     usageType,
+				node:     node,
+			})
+		}
+		out = append(out, leaves...)
 	}
 
 	return out, nil
+}
+
+func recordDataRefAccess(s *scope,
+	usageType UsageType,
+	param *Param,
+	access []ast.Node) ([]*Param, error) {
+	if len(access) == 0 {
+		return []*Param{param}, nil
+	}
+
+	head := access[0]
+	var names []string
+	switch access := head.(type) {
+	case *ast.DataRefKeyNode:
+		names = []string{access.Key}
+	case *ast.DataRefIndexNode:
+		names = []string{fmt.Sprint(access.Index)}
+	case *ast.DataRefExprNode:
+		constantValues, err := constantValues(s, access.Arg)
+		if err != nil {
+			return nil, wrapError(s, access, err)
+		}
+		if len(constantValues) > 0 {
+			names = append(names, constantValues...)
+		} else {
+			err := analyzeNode(s, UsageFull, access.Arg)
+			if err != nil {
+				return nil, wrapError(s, access, err)
+			}
+		}
+		if len(names) == 0 {
+			names = []string{"?"}
+		}
+	}
+	var out []*Param
+	for _, name := range names {
+		if _, exists := param.Children[name]; !exists {
+			param.Children[name] = newParam()
+		}
+		leaves, err := recordDataRefAccess(s, usageType, param.Children[name], access[1:])
+		if err != nil {
+			return nil, wrapError(s, head, err)
+		}
+		out = append(out, leaves...)
+	}
+	return out, nil
+}
+
+func constantValues(s *scope, node ast.Node) ([]string, error) {
+	switch v := node.(type) {
+	case *ast.StringNode:
+		return []string{v.Value}, nil
+	case *ast.IntNode:
+		return []string{fmt.Sprint(v.Value)}, nil
+	case *ast.DataRefNode:
+		params, err := findParams(s, v.Key)
+		if err != nil {
+			return nil, wrapError(s, v, err)
+		}
+		var out []string
+		for _, param := range params {
+			if param.isConstant() {
+				out = append(out, param.constant.stringValue)
+			}
+		}
+		return out, nil
+	}
+	return nil, nil
 }
 
 func mapVariable(
@@ -376,6 +432,36 @@ func mapVariable(
 	return nil
 }
 
+func mapConstantVariable(
+	s *scope,
+	name string,
+	node ast.Node,
+) error {
+	if err := analyzeNode(s, UsageFull, node); err != nil {
+		return wrapError(s, node, err)
+	}
+	if l, isList := node.(*ast.ListNode); isList && len(l.Nodes) == 1 {
+		var params []*Param
+		switch v := l.Nodes[0].(type) {
+		case *ast.RawTextNode:
+			p := newParam()
+			p.constant = &constant{
+				stringValue: v.String(),
+			}
+			params = append(params, p)
+		case *ast.SwitchNode:
+			for _, c := range v.Cases {
+				mapConstantVariable(s, name, c.Body)
+			}
+		default:
+			fmt.Printf("Not a string: %T\n", v)
+		}
+		s.variables[name] = append(s.variables[name], params...)
+		return nil
+	}
+	return nil
+}
+
 func extractVariables(
 	s *scope,
 	name string,
@@ -383,6 +469,12 @@ func extractVariables(
 ) (map[string][]*Param, error) {
 	var out = make(map[string][]*Param)
 	switch v := node.(type) {
+	case *ast.StringNode:
+		p := newParam()
+		p.constant = &constant{
+			stringValue: v.Value,
+		}
+		out[name] = append(out[name], p)
 	case *ast.DataRefNode:
 		p, err := recordDataRef(s, UsageReference, v)
 		if err != nil {

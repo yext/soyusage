@@ -28,6 +28,14 @@ type (
 		Children Params
 		// Usage describes how this parameter or field was used
 		Usage UsageByTemplate
+
+		// A constant value for this param
+		constant *constant
+	}
+
+	constant struct {
+		stringValue string
+		intValue    *int
 	}
 
 	// UsageType specifies the manner in which a parameter was used.
@@ -38,14 +46,23 @@ type (
 		Type UsageType
 		// Template provides the name of the template containing the usage.
 		Template string
-		// Node contains a reference to the AST node where the param was referenced.
-		// This can be used with the Template name and template.Registry to identify
-		// where in the file the usage occurred.
-		Node ast.Node
+
+		node ast.Node
 	}
 	// UsageByTemplate organizes usages by where they occurred
 	UsageByTemplate map[string][]Usage
 )
+
+// Node provides a reference to the AST node where the param was used.
+// This can be used with the Template name and template.Registry to identify
+// where in the file the usage occurred.
+func (u Usage) Node() ast.Node {
+	return u.node
+}
+
+func (p *Param) isConstant() bool {
+	return p.constant != nil
+}
 
 func newParam() *Param {
 	return &Param{
