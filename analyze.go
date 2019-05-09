@@ -245,7 +245,7 @@ func analyzeCall(
 		callScope,
 	}
 	if call.Data != nil {
-		variables, err := extractVariables(s, "data", call.Data)
+		variables, err := extractVariables(s, call.Data)
 		if err != nil {
 			return wrapError(s, call.Data, err)
 		}
@@ -266,7 +266,7 @@ func analyzeCall(
 					return wrapError(s, parameter, err)
 				}
 			case *ast.CallParamValueNode:
-				variables, err := extractVariables(s, v.Key, v.Value)
+				variables, err := extractVariables(s, v.Value)
 				if err != nil {
 					return wrapError(s, parameter, err)
 				}
@@ -420,7 +420,7 @@ func mapVariable(
 	name string,
 	node ast.Node,
 ) error {
-	variables, err := extractVariables(s, name, node)
+	variables, err := extractVariables(s, node)
 	if err != nil {
 		return wrapError(s, node, err)
 	}
@@ -460,7 +460,6 @@ func mapConstantVariable(
 
 func extractVariables(
 	s *scope,
-	name string,
 	node ast.Node,
 ) ([]*Param, error) {
 	var out []*Param
@@ -478,12 +477,12 @@ func extractVariables(
 		}
 		out = append(out, p...)
 	case *ast.ElvisNode:
-		v1, err := extractVariables(s, name, v.Arg1)
+		v1, err := extractVariables(s, v.Arg1)
 		if err != nil {
 			return nil, wrapError(s, node, err)
 		}
 		out = append(out, v1...)
-		v2, err := extractVariables(s, name, v.Arg2)
+		v2, err := extractVariables(s, v.Arg2)
 		if err != nil {
 			return nil, wrapError(s, node, err)
 		}
@@ -492,12 +491,12 @@ func extractVariables(
 		if err := analyzeNode(s, UsageFull, v.Arg1); err != nil {
 			return nil, wrapError(s, node, err)
 		}
-		v1, err := extractVariables(s, name, v.Arg2)
+		v1, err := extractVariables(s, v.Arg2)
 		if err != nil {
 			return nil, wrapError(s, node, err)
 		}
 		out = append(out, v1...)
-		v2, err := extractVariables(s, name, v.Arg3)
+		v2, err := extractVariables(s, v.Arg3)
 		if err != nil {
 			return nil, wrapError(s, node, err)
 		}
