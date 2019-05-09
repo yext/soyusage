@@ -48,7 +48,8 @@ func TestAnalyzeParamHierarchy(t *testing.T) {
 				* @param a
 				*/
 				{template .main}
-					{$a['b'] | json}
+					{let $c: $a['b'] /}
+					{$c.d | json}
 				{/template}
 			`,
 			},
@@ -56,8 +57,39 @@ func TestAnalyzeParamHierarchy(t *testing.T) {
 			expected: map[string]interface{}{
 				"a": map[string]interface{}{
 					"['b']": map[string]interface{}{
-						"*": struct{}{},
+						"d": map[string]interface{}{
+							"*": struct{}{},
+						},
 					},
+				},
+			},
+		},
+		{
+			name: "inexplicit map access is listed",
+			templates: map[string]string{
+				"test.soy": `
+				{namespace test}
+				/**
+				* @param a
+				* @param b
+				*/
+				{template .main}
+					{let $c: $a[$b] /}
+					{$c.d}
+				{/template}
+			`,
+			},
+			templateName: "test.main",
+			expected: map[string]interface{}{
+				"a": map[string]interface{}{
+					"[?]": map[string]interface{}{
+						"d": map[string]interface{}{
+							"*": struct{}{},
+						},
+					},
+				},
+				"b": map[string]interface{}{
+					"*": struct{}{},
 				},
 			},
 		},

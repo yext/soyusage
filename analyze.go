@@ -335,9 +335,13 @@ func recordDataRef(
 				name = "[?]"
 				if _, isString := access.Arg.(*ast.StringNode); isString {
 					name = fmt.Sprint(access)
-				}
-				if _, isInt := access.Arg.(*ast.IntNode); isInt {
+				} else if _, isInt := access.Arg.(*ast.IntNode); isInt {
 					name = fmt.Sprint(access)
+				} else {
+					err := analyzeNode(s, UsageFull, access.Arg)
+					if err != nil {
+						return nil, wrapError(s, node, err)
+					}
 				}
 			}
 			if _, exists := param.Children[name]; !exists {
