@@ -95,11 +95,11 @@ func analyzeNode(s *scope, usageType UsageType, node ...ast.Node) error {
 			case *ast.EqNode:
 				return analyzeNode(cs, UsageFull, v.Children()...)
 			case *ast.ForNode:
-				// Clear any existing variable value
-				cs.variables[v.Var] = nil
-				if err := mapVariable(cs, v.Var, v.List); err != nil {
-					return err
+				variables, err := extractVariables(s, v.List)
+				if err != nil {
+					return wrapError(s, node, err)
 				}
+				cs.variables[v.Var] = variables
 				return analyzeNode(cs, usageType, v.Body)
 			case *ast.FunctionNode:
 				return analyzeNode(cs, UsageUnknown, v.Children()...)
@@ -122,12 +122,18 @@ func analyzeNode(s *scope, usageType UsageType, node ...ast.Node) error {
 				}
 				return nil
 			case *ast.LetContentNode:
-				cs.variables[v.Name] = nil
-				return mapConstantVariable(cs, v.Name, v.Body)
+				variables, err := extractConstantVariables(cs, v.Body)
+				if err != nil {
+					return wrapError(s, node, err)
+				}
+				cs.variables[v.Name] = variables
 			case *ast.LetValueNode:
-				// Clear any existing variable value
-				cs.variables[v.Name] = nil
-				return mapVariable(cs, v.Name, v.Expr)
+				variables, err := extractVariables(s, v.Expr)
+				if err != nil {
+					return wrapError(s, node, err)
+				}
+				cs.variables[v.Name] = variables
+				return nil
 			case *ast.ListLiteralNode:
 				return analyzeNode(cs, usageType, v.Items...)
 			case *ast.ListNode:
@@ -415,26 +421,12 @@ func constantValues(s *scope, node ast.Node) ([]string, error) {
 	return nil, nil
 }
 
-func mapVariable(
+func extractConstantVariables(
 	s *scope,
-	name string,
 	node ast.Node,
-) error {
-	variables, err := extractVariables(s, node)
-	if err != nil {
-		return wrapError(s, node, err)
-	}
-	s.variables[name] = append(s.variables[name], variables...)
-	return nil
-}
-
-func mapConstantVariable(
-	s *scope,
-	name string,
-	node ast.Node,
-) error {
+) ([]*Param, error) {
 	if err := analyzeNode(s, UsageFull, node); err != nil {
-		return wrapError(s, node, err)
+		return nil, wrapError(s, node, err)
 	}
 	if l, isList := node.(*ast.ListNode); isList && len(l.Nodes) == 1 {
 		var params []*Param
@@ -447,21 +439,25 @@ func mapConstantVariable(
 			params = append(params, p)
 		case *ast.SwitchNode:
 			for _, c := range v.Cases {
-				mapConstantVariable(s, name, c.Body)
+				p, err := extractConstantVariables(s, c.Body)
+				if err != nil {
+					return nil, wrapError(s, c, err)
+				}
+				params = append(params, p...)
 			}
 		default:
 			fmt.Printf("Not a string: %T\n", v)
 		}
-		s.variables[name] = append(s.variables[name], params...)
-		return nil
+		return params, nil
 	}
-	return nil
+	return nil, nil
 }
 
 func extractVariables(
 	s *scope,
 	node ast.Node,
 ) ([]*Param, error) {
+	fmt.Println("extractVariables:", node)
 	var out []*Param
 	switch v := node.(type) {
 	case *ast.StringNode:
