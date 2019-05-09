@@ -249,7 +249,7 @@ func analyzeCall(
 		if err != nil {
 			return wrapError(s, call.Data, err)
 		}
-		for _, param := range variables["data"] {
+		for _, param := range variables {
 			dataScope := s.inner()
 			dataScope.variables = make(map[string][]*Param)
 			dataScope.parameters = param.Children
@@ -270,9 +270,7 @@ func analyzeCall(
 				if err != nil {
 					return wrapError(s, parameter, err)
 				}
-				for key, params := range variables {
-					scope.variables[key] = params
-				}
+				scope.variables[v.Key] = variables
 			}
 		}
 		scope.templateStack = append(scope.templateStack, scope.templateName)
@@ -426,9 +424,7 @@ func mapVariable(
 	if err != nil {
 		return wrapError(s, node, err)
 	}
-	for key, params := range variables {
-		s.variables[key] = append(s.variables[key], params...)
-	}
+	s.variables[name] = append(s.variables[name], variables...)
 	return nil
 }
 
@@ -466,36 +462,32 @@ func extractVariables(
 	s *scope,
 	name string,
 	node ast.Node,
-) (map[string][]*Param, error) {
-	var out = make(map[string][]*Param)
+) ([]*Param, error) {
+	var out []*Param
 	switch v := node.(type) {
 	case *ast.StringNode:
 		p := newParam()
 		p.constant = &constant{
 			stringValue: v.Value,
 		}
-		out[name] = append(out[name], p)
+		out = append(out, p)
 	case *ast.DataRefNode:
 		p, err := recordDataRef(s, UsageReference, v)
 		if err != nil {
 			return nil, wrapError(s, node, err)
 		}
-		out[name] = append(out[name], p...)
+		out = append(out, p...)
 	case *ast.ElvisNode:
 		v1, err := extractVariables(s, name, v.Arg1)
 		if err != nil {
 			return nil, wrapError(s, node, err)
 		}
-		for key, params := range v1 {
-			out[key] = append(out[key], params...)
-		}
+		out = append(out, v1...)
 		v2, err := extractVariables(s, name, v.Arg2)
 		if err != nil {
 			return nil, wrapError(s, node, err)
 		}
-		for key, params := range v2 {
-			out[key] = append(out[key], params...)
-		}
+		out = append(out, v2...)
 	case *ast.TernNode:
 		if err := analyzeNode(s, UsageFull, v.Arg1); err != nil {
 			return nil, wrapError(s, node, err)
@@ -504,16 +496,12 @@ func extractVariables(
 		if err != nil {
 			return nil, wrapError(s, node, err)
 		}
-		for key, params := range v1 {
-			out[key] = append(out[key], params...)
-		}
+		out = append(out, v1...)
 		v2, err := extractVariables(s, name, v.Arg3)
 		if err != nil {
 			return nil, wrapError(s, node, err)
 		}
-		for key, params := range v2 {
-			out[key] = append(out[key], params...)
-		}
+		out = append(out, v2...)
 	default:
 		type withChildren interface {
 			Children() []ast.Node
