@@ -231,6 +231,37 @@ func TestAnalyzeConstantMapAccess(t *testing.T) {
 			},
 		},
 		{
+			name: "handles keyed map literal",
+			templates: map[string]string{
+				"test.soy": `
+				{namespace test}
+				/**
+				* @param profile
+				*/
+				{template .main}
+					{let $m: [
+						'first': 'c_education',
+						'second': 'c_awards'
+					]/}
+					{foreach $i in keys($m)}
+						{$profile[$i]}
+					{/foreach}
+				{/template}
+			`,
+			},
+			templateName: "test.main",
+			expected: map[string]interface{}{
+				"profile": map[string]interface{}{
+					"c_education": map[string]interface{}{
+						"*": struct{}{},
+					},
+					"c_awards": map[string]interface{}{
+						"*": struct{}{},
+					},
+				},
+			},
+		},
+		{
 			name: "handles mapping from an if statement",
 			templates: map[string]string{
 				"test.soy": `
@@ -280,7 +311,7 @@ func TestAnalyzeConstantMapAccess(t *testing.T) {
 				*/
 				{template .main}
 					{let $textField}
-						{switch $category}
+						{switch ($category ?: '')}
 							{case 'Auto'}
 								c_autoAbout
 							{case 'Home'}
@@ -288,12 +319,13 @@ func TestAnalyzeConstantMapAccess(t *testing.T) {
 							{default}
 								{if $about == 'Life'}
 									c_lifeAbout
+								{else}
+									c_about
 								{/if}
 						{/switch}
 					{/let}
-					{if $profile[$textField]}
-						{$profile[$textField]}
-					{/if}
+					{let $value: $profile[$textField] /}
+					{$value}
 				{/template}
 			`,
 			},
@@ -313,6 +345,9 @@ func TestAnalyzeConstantMapAccess(t *testing.T) {
 						"*": struct{}{},
 					},
 					"c_lifeAbout": map[string]interface{}{
+						"*": struct{}{},
+					},
+					"c_about": map[string]interface{}{
 						"*": struct{}{},
 					},
 				},

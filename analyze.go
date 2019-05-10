@@ -140,7 +140,7 @@ func analyzeNode(s *scope, usageType UsageType, node ...ast.Node) error {
 				}
 				cs.variables[v.Name] = variables
 			case *ast.LetValueNode:
-				variables, err := extractVariables(s, v.Expr)
+				variables, err := extractVariables(cs, v.Expr)
 				if err != nil {
 					return wrapError(s, node, err)
 				}
@@ -448,6 +448,9 @@ func constantValues(s *scope, node ast.Node) ([]string, error) {
 
 		return stringSetToSlice(out), nil
 	case *ast.FunctionNode:
+		if v.Name == "keys" {
+			return constantValues(s, v.Args[0])
+		}
 		var out = make(map[string]struct{})
 		if v.Name == "range" {
 			var (
