@@ -104,8 +104,7 @@ func analyzeNode(s *scope, usageType UsageType, node ...ast.Node) error {
 				if err != nil {
 					return wrapError(s, node, err)
 				}
-				cs.variables[v.Var] = appendStringConstants(cs.variables[v.Var], constants...)
-				cs.variables[v.Var] = appendNonStringConstantsAsString(cs.variables[v.Var], constants...)
+				cs.variables[v.Var] = appendConstants(cs.variables[v.Var], constants...)
 				return analyzeNode(cs, usageType, v.Body)
 			case *ast.FunctionNode:
 				var usage UsageType = UsageUnknown
@@ -378,30 +377,41 @@ func recordDataRefAccess(s *scope,
 	}
 
 	head := access[0]
-	var names []string
+	var names []interface{}
 	switch access := head.(type) {
 	case *ast.DataRefKeyNode:
-		names = []string{access.Key}
+		names = []interface{}{access.Key}
 	case *ast.DataRefIndexNode:
-		names = []string{fmt.Sprint(access.Index)}
+		names = []interface{}{access.Index}
 	case *ast.DataRefExprNode:
 		constantValues, err := constantValues(s, access.Arg)
 		if err != nil {
 			return nil, wrapError(s, access, err)
 		}
-		names = appendStrings(names, constantValues...)
-		names = appendNonStringsAsStrings(names, constantValues...)
+		names = append(names, constantValues...)
 		err = analyzeNode(s, UsageFull, access.Arg)
 		if err != nil {
 			return nil, wrapError(s, access, err)
 		}
 	}
 	var out []*Param
-	for _, name := range names {
-		if _, exists := param.Children[name]; !exists {
-			param.Children[name] = newParam()
+	for _, n := range names {
+		var nextParam *Param
+		switch name := n.(type) {
+		case int:
+			nextParam = param
+		case nonConstant:
+			if _, exists := param.Children["?"]; !exists {
+				param.Children["?"] = newParam()
+			}
+			nextParam = param.Children["?"]
+		case string:
+			if _, exists := param.Children[name]; !exists {
+				param.Children[name] = newParam()
+			}
+			nextParam = param.Children[name]
 		}
-		leaves, err := recordDataRefAccess(s, usageType, param.Children[name], access[1:])
+		leaves, err := recordDataRefAccess(s, usageType, nextParam, access[1:])
 		if err != nil {
 			return nil, wrapError(s, head, err)
 		}
@@ -413,7 +423,6 @@ func recordDataRefAccess(s *scope,
 func constantValues(s *scope, node ast.Node) ([]interface{}, error) {
 	switch v := node.(type) {
 	case *ast.StringNode:
-		fmt.Println(v)
 		return []interface{}{v.Value}, nil
 	case *ast.IntNode:
 		return []interface{}{int(v.Value)}, nil
@@ -503,7 +512,6 @@ func constantValues(s *scope, node ast.Node) ([]interface{}, error) {
 						}
 					}
 				}
-				fmt.Println("Intervals: ", out)
 			}
 			return intSetToInterface(out), nil
 		}
@@ -558,6 +566,12 @@ func extractConstantVariables(
 				}
 				params = append(params, p...)
 			}
+		case *ast.MsgPlaceholderNode:
+			p, err := extractConstantVariables(s, v.Body)
+			if err != nil {
+				return nil, wrapError(s, v, err)
+			}
+			params = append(params, p...)
 		case *ast.MsgNode:
 			p, err := extractConstantVariables(s, v.Body)
 			if err != nil {
@@ -576,8 +590,9 @@ func extractConstantVariables(
 					params = append(params, p)
 				}
 			}
+		case *ast.CallNode, *ast.ForNode:
 		default:
-			fmt.Printf("Not a string: %T\n", v)
+			return nil, newErrorf(s, v, "unexpected type: %T\n", v)
 		}
 		return params, nil
 	}
@@ -593,6 +608,10 @@ func extractVariables(
 	case *ast.StringNode:
 		p := newParam()
 		p.constant = v.Value
+		out = append(out, p)
+	case *ast.IntNode:
+		p := newParam()
+		p.constant = int(v.Value)
 		out = append(out, p)
 	case *ast.ListLiteralNode:
 		for _, item := range v.Items {
@@ -621,8 +640,7 @@ func extractVariables(
 		if err != nil {
 			return nil, wrapError(s, v, err)
 		}
-		out = appendStringConstants(out, constants...)
-		out = appendNonStringConstantsAsString(out, constants...)
+		out = appendConstants(out, constants...)
 	case *ast.ElvisNode:
 		v1, err := extractVariables(s, v.Arg1)
 		if err != nil {
@@ -678,48 +696,12 @@ func (n nonConstant) String() string {
 	return "?"
 }
 
-func appendNonStringsAsStrings(in []string, values ...interface{}) []string {
-	out := in
-	for _, value := range values {
-		if _, isString := value.(string); !isString {
-			out = append(out, fmt.Sprint(value))
-		}
-	}
-	return out
-}
-
-func appendStrings(in []string, values ...interface{}) []string {
-	out := in
-	for _, value := range values {
-		if str, isString := value.(string); isString {
-			out = append(out, str)
-		}
-	}
-	return out
-}
-
-func appendNonStringConstantsAsString(params []*Param, constants ...interface{}) []*Param {
+func appendConstants(params []*Param, constants ...interface{}) []*Param {
 	out := params
 	for _, value := range constants {
-		if _, isString := value.(string); !isString {
-			p := newParam()
-			p.constant = fmt.Sprint(value)
-			out = append(out, p)
-		}
+		p := newParam()
+		p.constant = value
+		out = append(out, p)
 	}
-	//fmt.Println("Constant before/after:", pretty.Compare(params, out))
-	return out
-}
-
-func appendStringConstants(params []*Param, constants ...interface{}) []*Param {
-	out := params
-	for _, value := range constants {
-		if valueStr, isString := value.(string); isString {
-			p := newParam()
-			p.constant = valueStr
-			out = append(out, p)
-		}
-	}
-	//fmt.Println("Constant before/after:", pretty.Compare(params, out))
 	return out
 }

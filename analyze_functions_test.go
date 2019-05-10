@@ -45,10 +45,8 @@ func TestAnalyzeFunctions(t *testing.T) {
 			templateName: "test.main",
 			expected: map[string]interface{}{
 				"a": map[string]interface{}{
-					"0": map[string]interface{}{
-						"b": map[string]interface{}{
-							"*": struct{}{},
-						},
+					"b": map[string]interface{}{
+						"*": struct{}{},
 					},
 				},
 			},

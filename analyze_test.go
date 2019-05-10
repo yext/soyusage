@@ -104,10 +104,8 @@ func TestAnalyzeParamHierarchy(t *testing.T) {
 			templateName: "test.main",
 			expected: map[string]interface{}{
 				"a": map[string]interface{}{
-					"5": map[string]interface{}{
-						"c": map[string]interface{}{
-							"*": struct{}{},
-						},
+					"c": map[string]interface{}{
+						"*": struct{}{},
 					},
 				},
 			},
@@ -128,10 +126,8 @@ func TestAnalyzeParamHierarchy(t *testing.T) {
 			templateName: "test.main",
 			expected: map[string]interface{}{
 				"a": map[string]interface{}{
-					"5": map[string]interface{}{
-						"c": map[string]interface{}{
-							"*": struct{}{},
-						},
+					"c": map[string]interface{}{
+						"*": struct{}{},
 					},
 				},
 			},
