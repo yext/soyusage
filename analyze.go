@@ -534,6 +534,14 @@ func extractConstantVariables(
 				}
 				params = append(params, p...)
 			}
+		case *ast.IfNode:
+			for _, c := range v.Conds {
+				p, err := extractConstantVariables(s, c.Body)
+				if err != nil {
+					return nil, wrapError(s, c, err)
+				}
+				params = append(params, p...)
+			}
 		default:
 			fmt.Printf("Not a string: %T\n", v)
 		}

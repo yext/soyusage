@@ -230,6 +230,94 @@ func TestAnalyzeConstantMapAccess(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "handles mapping from an if statement",
+			templates: map[string]string{
+				"test.soy": `
+				{namespace test}
+				/**
+				* @param profile
+				* @param category
+				*/
+				{template .main}
+					{let $textField}
+						{if $category == 'Auto'}
+							c_autoAbout
+						{else}
+							c_lifeAbout
+						{/if}
+					{/let}
+					{if $profile[$textField]}
+						{$profile[$textField]}
+					{/if}
+				{/template}
+			`,
+			},
+			templateName: "test.main",
+			expected: map[string]interface{}{
+				"category": map[string]interface{}{
+					"*": struct{}{},
+				},
+				"profile": map[string]interface{}{
+					"c_autoAbout": map[string]interface{}{
+						"*": struct{}{},
+					},
+					"c_lifeAbout": map[string]interface{}{
+						"*": struct{}{},
+					},
+				},
+			},
+		},
+		{
+			name: "handles mapping from nested statements",
+			templates: map[string]string{
+				"test.soy": `
+				{namespace test}
+				/**
+				* @param profile
+				* @param category
+				* @param about
+				*/
+				{template .main}
+					{let $textField}
+						{switch $category}
+							{case 'Auto'}
+								c_autoAbout
+							{case 'Home'}
+								c_homeAbout
+							{default}
+								{if $about == 'Life'}
+									c_lifeAbout
+								{/if}
+						{/switch}
+					{/let}
+					{if $profile[$textField]}
+						{$profile[$textField]}
+					{/if}
+				{/template}
+			`,
+			},
+			templateName: "test.main",
+			expected: map[string]interface{}{
+				"category": map[string]interface{}{
+					"*": struct{}{},
+				},
+				"about": map[string]interface{}{
+					"*": struct{}{},
+				},
+				"profile": map[string]interface{}{
+					"c_autoAbout": map[string]interface{}{
+						"*": struct{}{},
+					},
+					"c_homeAbout": map[string]interface{}{
+						"*": struct{}{},
+					},
+					"c_lifeAbout": map[string]interface{}{
+						"*": struct{}{},
+					},
+				},
+			},
+		},
 	}
 	testAnalyze(t, tests)
 }
