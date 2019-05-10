@@ -545,6 +545,27 @@ func extractConstantVariables(
 				}
 				params = append(params, p...)
 			}
+		case *ast.MsgNode:
+			p, err := extractConstantVariables(s, v.Body)
+			if err != nil {
+				return nil, wrapError(s, v, err)
+			}
+			params = append(params, p...)
+		case *ast.PrintNode:
+			if len(v.Directives) == 0 {
+				fmt.Printf("%T\n", v.Arg)
+				constants, err := constantValues(s, v.Arg)
+				if err != nil {
+					return nil, wrapError(s, v, err)
+				}
+				for _, value := range constants {
+					p := newParam()
+					p.constant = &constant{
+						stringValue: value,
+					}
+					params = append(params, p)
+				}
+			}
 		default:
 			fmt.Printf("Not a string: %T\n", v)
 		}
@@ -587,6 +608,18 @@ func extractVariables(
 			return nil, wrapError(s, node, err)
 		}
 		out = append(out, p...)
+
+		constants, err := constantValues(s, v)
+		if err != nil {
+			return nil, wrapError(s, v, err)
+		}
+		for _, value := range constants {
+			p := newParam()
+			p.constant = &constant{
+				stringValue: value,
+			}
+			out = append(out, p)
+		}
 	case *ast.ElvisNode:
 		v1, err := extractVariables(s, v.Arg1)
 		if err != nil {

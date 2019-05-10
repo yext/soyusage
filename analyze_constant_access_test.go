@@ -40,6 +40,70 @@ func TestAnalyzeConstantMapAccess(t *testing.T) {
 			},
 		},
 		{
+			name: "handles indirect mapping via print and assignment",
+			templates: map[string]string{
+				"test.soy": `
+				{namespace test}
+				/**
+				* @param profile
+				*/
+				{template .main}
+					{let $textField}
+						c_lifeAbout
+					{/let}
+					{let $indirect}
+						{$textField}
+					{/let}
+					{let $textField2: 'c_other'/}
+					{let $indirect2: $textField2/}
+					{$profile[$indirect]}
+					{$profile[$indirect2]}
+				{/template}
+			`,
+			},
+			templateName: "test.main",
+			expected: map[string]interface{}{
+				"profile": map[string]interface{}{
+					"c_other": map[string]interface{}{
+						"*": struct{}{},
+					},
+					"c_lifeAbout": map[string]interface{}{
+						"*": struct{}{},
+					},
+				},
+			},
+		},
+		{
+			name: "handles mapping of string values with msg",
+			templates: map[string]string{
+				"test.soy": `
+				{namespace test}
+				/**
+				* @param profile
+				*/
+				{template .main}
+					{let $textField}
+						{msg desc="appropriate key for this language"}c_lifeAbout{/msg}
+					{/let}
+					{let $textField2: 'c_other'/}
+					{$profile[$textField]}
+					{$profile[$textField2]}
+				{/template}
+			`,
+			},
+			templateName: "test.main",
+			expected: map[string]interface{}{
+				"profile": map[string]interface{}{
+					"c_other": map[string]interface{}{
+						"*": struct{}{},
+					},
+					"c_lifeAbout": map[string]interface{}{
+						"*": struct{}{},
+					},
+				},
+			},
+		},
+		{
 			name: "handles mapping from a switch statement",
 			templates: map[string]string{
 				"test.soy": `
