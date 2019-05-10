@@ -40,6 +40,46 @@ func TestAnalyzeConstantMapAccess(t *testing.T) {
 			},
 		},
 		{
+			name: "handles combined constant and variable values",
+			templates: map[string]string{
+				"test.soy": `
+				{namespace test}
+				/**
+				* @param profile
+				* @param locale
+				* @param alternative
+				*/
+				{template .main}
+					{let $textField}
+						{if $locale == 'en'}
+							c_lifeAbout
+						{else}
+							{$alternative}
+						{/if}
+					{/let}
+					{$profile[$textField]}
+				{/template}
+			`,
+			},
+			templateName: "test.main",
+			expected: map[string]interface{}{
+				"alternative": map[string]interface{}{
+					"*": struct{}{},
+				},
+				"locale": map[string]interface{}{
+					"*": struct{}{},
+				},
+				"profile": map[string]interface{}{
+					"?": map[string]interface{}{
+						"*": struct{}{},
+					},
+					"c_lifeAbout": map[string]interface{}{
+						"*": struct{}{},
+					},
+				},
+			},
+		},
+		{
 			name: "handles indirect mapping via print and assignment",
 			templates: map[string]string{
 				"test.soy": `

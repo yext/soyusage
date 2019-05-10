@@ -5,6 +5,7 @@ import (
 
 	"github.com/kr/pretty"
 	"github.com/robfig/soy"
+	"github.com/robfig/soy/template"
 	"github.com/theothertomelliott/must"
 	"github.com/theothertomelliott/soyusage"
 )
@@ -358,7 +359,7 @@ func testAnalyze(t *testing.T, tests []analyzeTest) {
 			must.BeEqual(t, test.expected, mapUsage(got))
 			must.BeEqualErrors(t, test.expectedErr, err)
 			if t.Failed() {
-				t.Log(pretty.Sprint(got))
+				t.Log(pretty.Sprint(mapUsageFull(registry, got)))
 			}
 		})
 	}
@@ -379,6 +380,36 @@ func mapUsage(params soyusage.Params) map[string]interface{} {
 			}
 		}
 		out[name] = mappedParam
+	}
+	return out
+}
+
+func mapUsageFull(registry *template.Registry, params soyusage.Params) map[string]interface{} {
+	var out = make(map[string]interface{})
+	for name, param := range params {
+		var paramOut = map[string]interface{}{
+			"Children": mapUsageFull(registry, param.Children),
+		}
+
+		var usageList []interface{}
+		for _, usages := range param.Usage {
+			for _, usage := range usages {
+				var usageValue = map[string]interface{}{}
+				switch usage.Type {
+				case soyusage.UsageFull:
+					usageValue["Type"] = "*"
+				case soyusage.UsageUnknown:
+					usageValue["Type"] = "?"
+				}
+				usageValue["Template"] = usage.Template
+				usageValue["File"] = registry.Filename(usage.Template)
+				usageValue["Line"] = registry.LineNumber(usage.Template, usage.Node())
+
+				usageList = append(usageList, usageValue)
+			}
+		}
+		paramOut["Usage"] = usageList
+		out[name] = paramOut
 	}
 	return out
 }

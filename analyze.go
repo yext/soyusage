@@ -387,14 +387,10 @@ func recordDataRefAccess(s *scope,
 		}
 		if len(constantValues) > 0 {
 			names = append(names, constantValues...)
-		} else {
-			err := analyzeNode(s, UsageFull, access.Arg)
-			if err != nil {
-				return nil, wrapError(s, access, err)
-			}
 		}
-		if len(names) == 0 {
-			names = []string{"?"}
+		err = analyzeNode(s, UsageFull, access.Arg)
+		if err != nil {
+			return nil, wrapError(s, access, err)
 		}
 	}
 	var out []*Param
@@ -426,6 +422,8 @@ func constantValues(s *scope, node ast.Node) ([]string, error) {
 		for _, param := range params {
 			if param.isConstant() {
 				out = append(out, param.constant.stringValue)
+			} else {
+				out = append(out, "?")
 			}
 		}
 		return out, nil
@@ -553,7 +551,6 @@ func extractConstantVariables(
 			params = append(params, p...)
 		case *ast.PrintNode:
 			if len(v.Directives) == 0 {
-				fmt.Printf("%T\n", v.Arg)
 				constants, err := constantValues(s, v.Arg)
 				if err != nil {
 					return nil, wrapError(s, v, err)
