@@ -137,28 +137,6 @@ func TestAnalyzeParamHierarchy(t *testing.T) {
 			},
 		},
 		{
-			name: "function gives unknown usage",
-			templates: map[string]string{
-				"test.soy": `
-				{namespace test}
-				/**
-				* @param a
-				*/
-				{template .main}
-					{myFunc($a.b)}
-				{/template}
-			`,
-			},
-			templateName: "test.main",
-			expected: map[string]interface{}{
-				"a": map[string]interface{}{
-					"b": map[string]interface{}{
-						"?": struct{}{},
-					},
-				},
-			},
-		},
-		{
 			name: "let creating alias",
 			templates: map[string]string{
 				"test.soy": `

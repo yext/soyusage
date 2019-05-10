@@ -114,7 +114,17 @@ func analyzeNode(s *scope, usageType UsageType, node ...ast.Node) error {
 				}
 				return analyzeNode(cs, usageType, v.Body)
 			case *ast.FunctionNode:
-				return analyzeNode(cs, UsageUnknown, v.Children()...)
+				var usage UsageType = UsageUnknown
+				switch v.Name {
+				case "isFirst", "isLast", "index", "isNonnull", "length":
+					usage = UsageMeta
+				case "keys":
+				case "augmentMap", "quoteKeysIfJs":
+					usage = UsageReference
+				case "round", "floor", "ceiling", "min", "max", "randomInt", "strContains":
+					usage = UsageFull
+				}
+				return analyzeNode(cs, usage, v.Children()...)
 			case *ast.GlobalNode:
 				// Globals assign primitive values and can be ignored for analyzing parameters
 			case *ast.GtNode:
@@ -640,6 +650,16 @@ func extractVariables(
 			return nil, wrapError(s, node, err)
 		}
 		out = append(out, v2...)
+	case *ast.FunctionNode:
+		if v.Name == "augmentMap" || v.Name == "quoteKeysIfJs" {
+			for _, arg := range v.Args {
+				variables, err := extractVariables(s, arg)
+				if err != nil {
+					return nil, wrapError(s, node, err)
+				}
+				out = append(out, variables...)
+			}
+		}
 	default:
 		type withChildren interface {
 			Children() []ast.Node

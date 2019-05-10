@@ -11,6 +11,8 @@ const (
 	// known. This usually means that it was used as a parameter
 	// to a function.
 	UsageUnknown
+	// UsageMeta indicates that a meta property of the parameter was used (length, isFirst, isLast, etc)
+	UsageMeta
 	// UsageReference indicates that the parameter was used in a reference,
 	// such as a parameter to a call or assigned to a variable.
 	UsageReference
