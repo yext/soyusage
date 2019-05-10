@@ -385,9 +385,7 @@ func recordDataRefAccess(s *scope,
 		if err != nil {
 			return nil, wrapError(s, access, err)
 		}
-		if len(constantValues) > 0 {
-			names = append(names, constantValues...)
-		}
+		names = append(names, constantValues...)
 		err = analyzeNode(s, UsageFull, access.Arg)
 		if err != nil {
 			return nil, wrapError(s, access, err)
