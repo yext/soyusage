@@ -249,30 +249,6 @@ func TestAnalyzeParamHierarchy(t *testing.T) {
 			},
 		},
 		{
-			name: "foreach loops create variables",
-			templates: map[string]string{
-				"test.soy": `
-				{namespace test}
-				/**
-				* @param list
-				*/
-				{template .main}
-					{foreach $item in $list}
-						{$item.field}
-					{/foreach}
-				{/template}
-			`,
-			},
-			templateName: "test.main",
-			expected: map[string]interface{}{
-				"list": map[string]interface{}{
-					"field": map[string]interface{}{
-						"*": struct{}{},
-					},
-				},
-			},
-		},
-		{
 			name: "handles switch statements",
 			templates: map[string]string{
 				"test.soy": `
