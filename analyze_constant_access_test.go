@@ -40,7 +40,7 @@ func TestAnalyzeConstantMapAccess(t *testing.T) {
 			},
 		},
 		{
-			name: "handles complex mapping",
+			name: "handles mapping from a switch statement",
 			templates: map[string]string{
 				"test.soy": `
 				{namespace test}
@@ -63,13 +63,6 @@ func TestAnalyzeConstantMapAccess(t *testing.T) {
 					{if $profile[$textField]}
 						{$profile[$textField]}
 					{/if}
-					{let $list: [
-						'c_education',
-						'c_awards'
-					]/}
-					{foreach $item in $list}
-						{$profile[$item]}
-					{/foreach}
 				{/template}
 			`,
 			},
@@ -91,6 +84,31 @@ func TestAnalyzeConstantMapAccess(t *testing.T) {
 					"c_lifeAbout": map[string]interface{}{
 						"*": struct{}{},
 					},
+				},
+			},
+		},
+		{
+			name: "handles mapping from a list literal",
+			templates: map[string]string{
+				"test.soy": `
+				{namespace test}
+				/**
+				* @param profile
+				*/
+				{template .main}
+					{let $list: [
+						'c_education',
+						'c_awards'
+					]/}
+					{foreach $item in $list}
+						{$profile[$item]}
+					{/foreach}
+				{/template}
+			`,
+			},
+			templateName: "test.main",
+			expected: map[string]interface{}{
+				"profile": map[string]interface{}{
 					"c_education": map[string]interface{}{
 						"*": struct{}{},
 					},
@@ -126,6 +144,87 @@ func TestAnalyzeConstantMapAccess(t *testing.T) {
 						"*": struct{}{},
 					},
 					"c_awards": map[string]interface{}{
+						"*": struct{}{},
+					},
+				},
+			},
+		},
+		{
+			name: "handles ranged map literal, no start",
+			templates: map[string]string{
+				"test.soy": `
+				{namespace test}
+				/**
+				* @param profile
+				*/
+				{template .main}
+					{foreach $i in range(2)}
+						{$profile['field' + $i]}
+					{/foreach}
+				{/template}
+			`,
+			},
+			templateName: "test.main",
+			expected: map[string]interface{}{
+				"profile": map[string]interface{}{
+					"field0": map[string]interface{}{
+						"*": struct{}{},
+					},
+					"field1": map[string]interface{}{
+						"*": struct{}{},
+					},
+				},
+			},
+		},
+		{
+			name: "handles ranged map literal",
+			templates: map[string]string{
+				"test.soy": `
+				{namespace test}
+				/**
+				* @param profile
+				*/
+				{template .main}
+					{foreach $i in range(1,3)}
+						{$profile['field' + $i]}
+					{/foreach}
+				{/template}
+			`,
+			},
+			templateName: "test.main",
+			expected: map[string]interface{}{
+				"profile": map[string]interface{}{
+					"field1": map[string]interface{}{
+						"*": struct{}{},
+					},
+					"field2": map[string]interface{}{
+						"*": struct{}{},
+					},
+				},
+			},
+		},
+		{
+			name: "handles ranged map literal with increment",
+			templates: map[string]string{
+				"test.soy": `
+				{namespace test}
+				/**
+				* @param profile
+				*/
+				{template .main}
+					{foreach $i in range(2,6,2)}
+						{$profile['field' + $i]}
+					{/foreach}
+				{/template}
+			`,
+			},
+			templateName: "test.main",
+			expected: map[string]interface{}{
+				"profile": map[string]interface{}{
+					"field2": map[string]interface{}{
+						"*": struct{}{},
+					},
+					"field4": map[string]interface{}{
 						"*": struct{}{},
 					},
 				},

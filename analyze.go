@@ -2,6 +2,7 @@ package soyusage
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/robfig/soy/ast"
 	"github.com/robfig/soy/template"
@@ -428,8 +429,85 @@ func constantValues(s *scope, node ast.Node) ([]string, error) {
 			}
 		}
 		return out, nil
+	case *ast.AddNode:
+		arg1Values, err := constantValues(s, v.Arg1)
+		if err != nil {
+			return nil, wrapError(s, v, err)
+		}
+		arg2Values, err := constantValues(s, v.Arg2)
+		if err != nil {
+			return nil, wrapError(s, v, err)
+		}
+
+		var out = make(map[string]struct{})
+		for _, arg1 := range arg1Values {
+			for _, arg2 := range arg2Values {
+				out[arg1+arg2] = struct{}{}
+			}
+		}
+
+		return stringSetToSlice(out), nil
+	case *ast.FunctionNode:
+		var out = make(map[string]struct{})
+		if v.Name == "range" {
+			var (
+				starts     = []string{"0"}
+				ends       []string
+				increments = []string{"1"}
+				err        error
+			)
+			if len(v.Args) == 1 {
+				ends, err = constantValues(s, v.Args[0])
+				if err != nil {
+					return nil, wrapError(s, v, err)
+				}
+			}
+			if len(v.Args) > 1 {
+				if starts, err = constantValues(s, v.Args[0]); err != nil {
+					return nil, wrapError(s, v, err)
+				}
+				if ends, err = constantValues(s, v.Args[1]); err != nil {
+					return nil, wrapError(s, v, err)
+				}
+			}
+			if len(v.Args) > 2 {
+				if increments, err = constantValues(s, v.Args[2]); err != nil {
+					return nil, wrapError(s, v, err)
+				}
+			}
+			for _, increment := range increments {
+				incrementI, err := strconv.Atoi(increment)
+				if err != nil {
+					continue
+				}
+				for _, start := range starts {
+					for _, end := range ends {
+						startI, err := strconv.Atoi(start)
+						if err != nil {
+							continue
+						}
+						endI, err := strconv.Atoi(end)
+						if err != nil {
+							continue
+						}
+						for i := startI; i < endI; i += incrementI {
+							out[fmt.Sprint(i)] = struct{}{}
+						}
+					}
+				}
+			}
+		}
+		return stringSetToSlice(out), nil
 	}
 	return nil, nil
+}
+
+func stringSetToSlice(set map[string]struct{}) []string {
+	var r []string
+	for val := range set {
+		r = append(r, val)
+	}
+	return r
 }
 
 func extractConstantVariables(
