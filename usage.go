@@ -32,12 +32,7 @@ type (
 		Usage UsageByTemplate
 
 		// A constant value for this param
-		constant *constant
-	}
-
-	constant struct {
-		stringValue string
-		intValue    *int
+		constant interface{}
 	}
 
 	// UsageType specifies the manner in which a parameter was used.

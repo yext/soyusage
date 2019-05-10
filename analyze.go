@@ -2,7 +2,6 @@ package soyusage
 
 import (
 	"fmt"
-	"strconv"
 
 	"github.com/robfig/soy/ast"
 	"github.com/robfig/soy/template"
@@ -105,13 +104,8 @@ func analyzeNode(s *scope, usageType UsageType, node ...ast.Node) error {
 				if err != nil {
 					return wrapError(s, node, err)
 				}
-				for _, value := range constants {
-					p := newParam()
-					p.constant = &constant{
-						stringValue: value,
-					}
-					cs.variables[v.Var] = append(cs.variables[v.Var], p)
-				}
+				cs.variables[v.Var] = appendStringConstants(cs.variables[v.Var], constants...)
+				cs.variables[v.Var] = appendNonStringConstantsAsString(cs.variables[v.Var], constants...)
 				return analyzeNode(cs, usageType, v.Body)
 			case *ast.FunctionNode:
 				var usage UsageType = UsageUnknown
@@ -395,7 +389,8 @@ func recordDataRefAccess(s *scope,
 		if err != nil {
 			return nil, wrapError(s, access, err)
 		}
-		names = append(names, constantValues...)
+		names = appendStrings(names, constantValues...)
+		names = appendNonStringsAsStrings(names, constantValues...)
 		err = analyzeNode(s, UsageFull, access.Arg)
 		if err != nil {
 			return nil, wrapError(s, access, err)
@@ -415,23 +410,24 @@ func recordDataRefAccess(s *scope,
 	return out, nil
 }
 
-func constantValues(s *scope, node ast.Node) ([]string, error) {
+func constantValues(s *scope, node ast.Node) ([]interface{}, error) {
 	switch v := node.(type) {
 	case *ast.StringNode:
-		return []string{v.Value}, nil
+		fmt.Println(v)
+		return []interface{}{v.Value}, nil
 	case *ast.IntNode:
-		return []string{fmt.Sprint(v.Value)}, nil
+		return []interface{}{int(v.Value)}, nil
 	case *ast.DataRefNode:
 		params, err := findParams(s, v.Key)
 		if err != nil {
 			return nil, wrapError(s, v, err)
 		}
-		var out []string
+		var out []interface{}
 		for _, param := range params {
 			if param.isConstant() {
-				out = append(out, param.constant.stringValue)
+				out = append(out, param.constant)
 			} else {
-				out = append(out, "?")
+				out = append(out, nonConstant{})
 			}
 		}
 		return out, nil
@@ -444,25 +440,27 @@ func constantValues(s *scope, node ast.Node) ([]string, error) {
 		if err != nil {
 			return nil, wrapError(s, v, err)
 		}
-
 		var out = make(map[string]struct{})
 		for _, arg1 := range arg1Values {
 			for _, arg2 := range arg2Values {
-				out[arg1+arg2] = struct{}{}
+				_, arg1IsString := arg1.(string)
+				_, arg2IsString := arg2.(string)
+				if arg1IsString || arg2IsString {
+					out[fmt.Sprint(arg1)+fmt.Sprint(arg2)] = struct{}{}
+				}
 			}
 		}
-
-		return stringSetToSlice(out), nil
+		return stringSetToInterface(out), nil
 	case *ast.FunctionNode:
 		if v.Name == "keys" {
 			return constantValues(s, v.Args[0])
 		}
-		var out = make(map[string]struct{})
 		if v.Name == "range" {
+			var out = make(map[int]struct{})
 			var (
-				starts     = []string{"0"}
-				ends       []string
-				increments = []string{"1"}
+				starts     = []interface{}{0}
+				ends       []interface{}
+				increments = []interface{}{1}
 				err        error
 			)
 			if len(v.Args) == 1 {
@@ -485,34 +483,45 @@ func constantValues(s *scope, node ast.Node) ([]string, error) {
 				}
 			}
 			for _, increment := range increments {
-				incrementI, err := strconv.Atoi(increment)
-				if err != nil {
+				var (
+					incrementI, startI, endI int
+					isInt                    bool
+				)
+				if incrementI, isInt = increment.(int); !isInt {
 					continue
 				}
 				for _, start := range starts {
 					for _, end := range ends {
-						startI, err := strconv.Atoi(start)
-						if err != nil {
+						if startI, isInt = start.(int); !isInt {
 							continue
 						}
-						endI, err := strconv.Atoi(end)
-						if err != nil {
+						if endI, isInt = end.(int); !isInt {
 							continue
 						}
 						for i := startI; i < endI; i += incrementI {
-							out[fmt.Sprint(i)] = struct{}{}
+							out[i] = struct{}{}
 						}
 					}
 				}
+				fmt.Println("Intervals: ", out)
 			}
+			return intSetToInterface(out), nil
 		}
-		return stringSetToSlice(out), nil
+		return nil, nil
 	}
 	return nil, nil
 }
 
-func stringSetToSlice(set map[string]struct{}) []string {
-	var r []string
+func intSetToInterface(set map[int]struct{}) []interface{} {
+	var r []interface{}
+	for val := range set {
+		r = append(r, val)
+	}
+	return r
+}
+
+func stringSetToInterface(set map[string]struct{}) []interface{} {
+	var r []interface{}
 	for val := range set {
 		r = append(r, val)
 	}
@@ -531,9 +540,7 @@ func extractConstantVariables(
 		switch v := l.Nodes[0].(type) {
 		case *ast.RawTextNode:
 			p := newParam()
-			p.constant = &constant{
-				stringValue: v.String(),
-			}
+			p.constant = v.String()
 			params = append(params, p)
 		case *ast.SwitchNode:
 			for _, c := range v.Cases {
@@ -565,9 +572,7 @@ func extractConstantVariables(
 				}
 				for _, value := range constants {
 					p := newParam()
-					p.constant = &constant{
-						stringValue: value,
-					}
+					p.constant = fmt.Sprint(value)
 					params = append(params, p)
 				}
 			}
@@ -587,9 +592,7 @@ func extractVariables(
 	switch v := node.(type) {
 	case *ast.StringNode:
 		p := newParam()
-		p.constant = &constant{
-			stringValue: v.Value,
-		}
+		p.constant = v.Value
 		out = append(out, p)
 	case *ast.ListLiteralNode:
 		for _, item := range v.Items {
@@ -618,13 +621,8 @@ func extractVariables(
 		if err != nil {
 			return nil, wrapError(s, v, err)
 		}
-		for _, value := range constants {
-			p := newParam()
-			p.constant = &constant{
-				stringValue: value,
-			}
-			out = append(out, p)
-		}
+		out = appendStringConstants(out, constants...)
+		out = appendNonStringConstantsAsString(out, constants...)
 	case *ast.ElvisNode:
 		v1, err := extractVariables(s, v.Arg1)
 		if err != nil {
@@ -672,4 +670,56 @@ func extractVariables(
 
 	}
 	return out, nil
+}
+
+type nonConstant struct{}
+
+func (n nonConstant) String() string {
+	return "?"
+}
+
+func appendNonStringsAsStrings(in []string, values ...interface{}) []string {
+	out := in
+	for _, value := range values {
+		if _, isString := value.(string); !isString {
+			out = append(out, fmt.Sprint(value))
+		}
+	}
+	return out
+}
+
+func appendStrings(in []string, values ...interface{}) []string {
+	out := in
+	for _, value := range values {
+		if str, isString := value.(string); isString {
+			out = append(out, str)
+		}
+	}
+	return out
+}
+
+func appendNonStringConstantsAsString(params []*Param, constants ...interface{}) []*Param {
+	out := params
+	for _, value := range constants {
+		if _, isString := value.(string); !isString {
+			p := newParam()
+			p.constant = fmt.Sprint(value)
+			out = append(out, p)
+		}
+	}
+	//fmt.Println("Constant before/after:", pretty.Compare(params, out))
+	return out
+}
+
+func appendStringConstants(params []*Param, constants ...interface{}) []*Param {
+	out := params
+	for _, value := range constants {
+		if valueStr, isString := value.(string); isString {
+			p := newParam()
+			p.constant = valueStr
+			out = append(out, p)
+		}
+	}
+	//fmt.Println("Constant before/after:", pretty.Compare(params, out))
+	return out
 }
