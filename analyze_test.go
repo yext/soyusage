@@ -10,13 +10,7 @@ import (
 )
 
 func TestAnalyzeParamHierarchy(t *testing.T) {
-	var tests = []struct {
-		name         string
-		templates    map[string]string
-		templateName string
-		expected     map[string]interface{}
-		expectedErr  error
-	}{
+	var tests = []analyzeTest{
 		{
 			name: "printed parameters give full usage",
 			templates: map[string]string{
@@ -276,75 +270,6 @@ func TestAnalyzeParamHierarchy(t *testing.T) {
 			},
 		},
 		{
-			name: "call params are recorded",
-			templates: map[string]string{
-				"test.soy": `
-				{namespace test}
-				/**
-				* @param data
-				* @param param
-				*/
-				{template .main}
-					{call .callee data="$data"}
-						{param passByParam: $param/}
-					{/call}
-				{/template}
-
-				/**
-				* @param passByParam
-				* @param? dataChild
-				*/
-				{template .callee}
-					{$passByParam.paramChild}
-					{$dataChild}
-				{/template}
-			`,
-			},
-			templateName: "test.main",
-			expected: map[string]interface{}{
-				"data": map[string]interface{}{
-					"dataChild": map[string]interface{}{
-						"*": struct{}{},
-					},
-				},
-				"param": map[string]interface{}{
-					"paramChild": map[string]interface{}{
-						"*": struct{}{},
-					},
-				},
-			},
-		},
-		{
-			name: "call params with all",
-			templates: map[string]string{
-				"test.soy": `
-				{namespace test}
-				/**
-				* @param data
-				*/
-				{template .main}
-					{call .callee data="all"}
-					{/call}
-				{/template}
-
-				/**
-				* @param data
-				*/
-				{template .callee}
-					{$data.dataChild}
-				{/template}
-			`,
-			},
-			templateName: "test.main",
-			expected: map[string]interface{}{
-				"data": map[string]interface{}{
-					"dataChild": map[string]interface{}{
-						"*": struct{}{},
-					},
-				},
-			},
-		},
-		{
 			name: "foreach loops create variables",
 			templates: map[string]string{
 				"test.soy": `
@@ -406,161 +331,19 @@ func TestAnalyzeParamHierarchy(t *testing.T) {
 				},
 			},
 		},
-		{
-			name: "handles call cycle",
-			templates: map[string]string{
-				"test.soy": `
-				{namespace test}
-				/**
-				* @param data
-				*/
-				{template .main}
-					{call .callee data="all"}
-					{/call}
-				{/template}
-
-				/**
-				* @param data
-				*/
-				{template .callee}
-					{$data.dataChild}
-					{call .callee data="all"}
-					{/call}
-				{/template}
-			`,
-			},
-			templateName: "test.main",
-			expected: map[string]interface{}{
-				"data": map[string]interface{}{
-					"dataChild": map[string]interface{}{
-						"*": struct{}{},
-					},
-				},
-			},
-		},
-		{
-			name: "handles mapping of string values",
-			templates: map[string]string{
-				"test.soy": `
-				{namespace test}
-				/**
-				* @param profile
-				*/
-				{template .main}
-					{let $textField}
-						c_lifeAbout
-					{/let}
-					{let $textField2: 'c_other'/}
-					{$profile[$textField]}
-					{$profile[$textField2]}
-				{/template}
-			`,
-			},
-			templateName: "test.main",
-			expected: map[string]interface{}{
-				"profile": map[string]interface{}{
-					"c_other": map[string]interface{}{
-						"*": struct{}{},
-					},
-					"c_lifeAbout": map[string]interface{}{
-						"*": struct{}{},
-					},
-				},
-			},
-		},
-		{
-			name: "handles complex mapping",
-			templates: map[string]string{
-				"test.soy": `
-				{namespace test}
-				/**
-				* @param profile
-				* @param category
-				* @param about
-				*/
-				{template .main}
-					{let $textField}
-						{switch $category}
-							{case 'Auto'}
-								c_autoAbout
-							{case 'Home'}
-								c_homeAbout
-							{case $about}
-								c_lifeAbout
-						{/switch}
-					{/let}
-					{if $profile[$textField]}
-						{$profile[$textField]}
-					{/if}
-					{let $list: [
-						'c_education',
-						'c_awards'
-					]/}
-					{foreach $item in $list}
-						{$profile[$item]}
-					{/foreach}
-				{/template}
-			`,
-			},
-			templateName: "test.main",
-			expected: map[string]interface{}{
-				"category": map[string]interface{}{
-					"*": struct{}{},
-				},
-				"about": map[string]interface{}{
-					"*": struct{}{},
-				},
-				"profile": map[string]interface{}{
-					"c_autoAbout": map[string]interface{}{
-						"*": struct{}{},
-					},
-					"c_homeAbout": map[string]interface{}{
-						"*": struct{}{},
-					},
-					"c_lifeAbout": map[string]interface{}{
-						"*": struct{}{},
-					},
-					"c_education": map[string]interface{}{
-						"*": struct{}{},
-					},
-					"c_awards": map[string]interface{}{
-						"*": struct{}{},
-					},
-				},
-			},
-		},
-		{
-			name: "handles map literal inside list",
-			templates: map[string]string{
-				"test.soy": `
-				{namespace test}
-				/**
-				* @param profile
-				*/
-				{template .main}
-					{let $list: [
-						['field': 'c_education'],
-						['field': 'c_awards']
-					]/}
-					{foreach $item in $list}
-						{$profile[$item.field]}
-					{/foreach}
-				{/template}
-			`,
-			},
-			templateName: "test.main",
-			expected: map[string]interface{}{
-				"profile": map[string]interface{}{
-					"c_education": map[string]interface{}{
-						"*": struct{}{},
-					},
-					"c_awards": map[string]interface{}{
-						"*": struct{}{},
-					},
-				},
-			},
-		},
 	}
+	testAnalyze(t, tests)
+}
+
+type analyzeTest struct {
+	name         string
+	templates    map[string]string
+	templateName string
+	expected     map[string]interface{}
+	expectedErr  error
+}
+
+func testAnalyze(t *testing.T, tests []analyzeTest) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			bundle := soy.NewBundle()
