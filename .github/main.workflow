@@ -1,6 +1,6 @@
-workflow "Test" {
-  on = "push"
+workflow "Unit Tests" {
   resolves = ["cedrickring/golang-action@1.3.0"]
+  on = "push"
 }
 
 action "cedrickring/golang-action@1.3.0" {
