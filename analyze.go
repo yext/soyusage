@@ -305,7 +305,7 @@ func analyzeCall(
 			if call.Name == stackTemplate {
 				cycles++
 			}
-			if cycles > 5 {
+			if cycles > 1 {
 				return nil
 			}
 		}

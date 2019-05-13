@@ -84,16 +84,16 @@ func TestAnalyzeCall(t *testing.T) {
 				* @param data
 				*/
 				{template .main}
-					{call .callee data="all"}
+					{call .callee data="$data"}
 					{/call}
 				{/template}
 
 				/**
-				* @param data
+				* @param child
 				*/
 				{template .callee}
-					{$data.dataChild}
-					{call .callee data="all"}
+					{$child.value}
+					{call .callee data="$child.data"}
 					{/call}
 				{/template}
 			`,
@@ -101,8 +101,18 @@ func TestAnalyzeCall(t *testing.T) {
 			templateName: "test.main",
 			expected: map[string]interface{}{
 				"data": map[string]interface{}{
-					"dataChild": map[string]interface{}{
-						"*": struct{}{},
+					"child": map[string]interface{}{
+						"data": map[string]interface{}{
+							"child": map[string]interface{}{
+								"data": struct{}{},
+								"value": map[string]interface{}{
+									"*": map[string]interface{}{},
+								},
+							},
+						},
+						"value": map[string]interface{}{
+							"*": struct{}{},
+						},
 					},
 				},
 			},
