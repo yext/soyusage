@@ -21,9 +21,7 @@ func TestAnalyzeFunctions(t *testing.T) {
 			templateName: "test.main",
 			expected: map[string]interface{}{
 				"a": map[string]interface{}{
-					"b": map[string]interface{}{
-						"?": struct{}{},
-					},
+					"b": "?",
 				},
 			},
 		},
@@ -45,9 +43,7 @@ func TestAnalyzeFunctions(t *testing.T) {
 			templateName: "test.main",
 			expected: map[string]interface{}{
 				"a": map[string]interface{}{
-					"b": map[string]interface{}{
-						"*": struct{}{},
-					},
+					"b": "*",
 				},
 			},
 		},
@@ -69,14 +65,10 @@ func TestAnalyzeFunctions(t *testing.T) {
 			templateName: "test.main",
 			expected: map[string]interface{}{
 				"a": map[string]interface{}{
-					"d": map[string]interface{}{
-						"*": struct{}{},
-					},
+					"d": "*",
 				},
 				"b": map[string]interface{}{
-					"d": map[string]interface{}{
-						"*": struct{}{},
-					},
+					"d": "*",
 				},
 			},
 		},
@@ -100,17 +92,11 @@ func TestAnalyzeFunctions(t *testing.T) {
 			templateName: "test.main",
 			expected: map[string]interface{}{
 				"a": map[string]interface{}{
-					"c": map[string]interface{}{
-						"*": struct{}{},
-					},
-					"d": map[string]interface{}{
-						"*": struct{}{},
-					},
+					"c": "*",
+					"d": "*",
 				},
 				"b": map[string]interface{}{
-					"c": map[string]interface{}{
-						"*": struct{}{},
-					},
+					"c": "*",
 				},
 			},
 		},

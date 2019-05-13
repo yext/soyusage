@@ -34,14 +34,10 @@ func TestAnalyzeCall(t *testing.T) {
 			templateName: "test.main",
 			expected: map[string]interface{}{
 				"data": map[string]interface{}{
-					"dataChild": map[string]interface{}{
-						"*": struct{}{},
-					},
+					"dataChild": "*",
 				},
 				"param": map[string]interface{}{
-					"paramChild": map[string]interface{}{
-						"*": struct{}{},
-					},
+					"paramChild": "*",
 				},
 			},
 		},
@@ -69,9 +65,7 @@ func TestAnalyzeCall(t *testing.T) {
 			templateName: "test.main",
 			expected: map[string]interface{}{
 				"data": map[string]interface{}{
-					"dataChild": map[string]interface{}{
-						"*": struct{}{},
-					},
+					"dataChild": "*",
 				},
 			},
 		},
@@ -104,15 +98,11 @@ func TestAnalyzeCall(t *testing.T) {
 					"child": map[string]interface{}{
 						"data": map[string]interface{}{
 							"child": map[string]interface{}{
-								"data": struct{}{},
-								"value": map[string]interface{}{
-									"*": map[string]interface{}{},
-								},
+								"data":  struct{}{},
+								"value": "*",
 							},
 						},
-						"value": map[string]interface{}{
-							"*": struct{}{},
-						},
+						"value": "*",
 					},
 				},
 			},

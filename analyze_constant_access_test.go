@@ -30,12 +30,8 @@ func TestAnalyzeConstantMapAccess(t *testing.T) {
 			templateName: "test.main",
 			expected: map[string]interface{}{
 				"profile": map[string]interface{}{
-					"c_other": map[string]interface{}{
-						"*": struct{}{},
-					},
-					"c_lifeAbout": map[string]interface{}{
-						"*": struct{}{},
-					},
+					"c_other":     "*",
+					"c_lifeAbout": "*",
 				},
 			},
 		},
@@ -63,19 +59,11 @@ func TestAnalyzeConstantMapAccess(t *testing.T) {
 			},
 			templateName: "test.main",
 			expected: map[string]interface{}{
-				"alternative": map[string]interface{}{
-					"*": struct{}{},
-				},
-				"locale": map[string]interface{}{
-					"*": struct{}{},
-				},
+				"alternative": "*",
+				"locale":      "*",
 				"profile": map[string]interface{}{
-					"?": map[string]interface{}{
-						"*": struct{}{},
-					},
-					"c_lifeAbout": map[string]interface{}{
-						"*": struct{}{},
-					},
+					"?":           "*",
+					"c_lifeAbout": "*",
 				},
 			},
 		},
@@ -104,12 +92,8 @@ func TestAnalyzeConstantMapAccess(t *testing.T) {
 			templateName: "test.main",
 			expected: map[string]interface{}{
 				"profile": map[string]interface{}{
-					"c_other": map[string]interface{}{
-						"*": struct{}{},
-					},
-					"c_lifeAbout": map[string]interface{}{
-						"*": struct{}{},
-					},
+					"c_other":     "*",
+					"c_lifeAbout": "*",
 				},
 			},
 		},
@@ -134,12 +118,8 @@ func TestAnalyzeConstantMapAccess(t *testing.T) {
 			templateName: "test.main",
 			expected: map[string]interface{}{
 				"profile": map[string]interface{}{
-					"c_other": map[string]interface{}{
-						"*": struct{}{},
-					},
-					"c_lifeAbout": map[string]interface{}{
-						"*": struct{}{},
-					},
+					"c_other":     "*",
+					"c_lifeAbout": "*",
 				},
 			},
 		},
@@ -172,22 +152,12 @@ func TestAnalyzeConstantMapAccess(t *testing.T) {
 			},
 			templateName: "test.main",
 			expected: map[string]interface{}{
-				"category": map[string]interface{}{
-					"*": struct{}{},
-				},
-				"about": map[string]interface{}{
-					"*": struct{}{},
-				},
+				"category": "*",
+				"about":    "*",
 				"profile": map[string]interface{}{
-					"c_autoAbout": map[string]interface{}{
-						"*": struct{}{},
-					},
-					"c_homeAbout": map[string]interface{}{
-						"*": struct{}{},
-					},
-					"c_lifeAbout": map[string]interface{}{
-						"*": struct{}{},
-					},
+					"c_autoAbout": "*",
+					"c_homeAbout": "*",
+					"c_lifeAbout": "*",
 				},
 			},
 		},
@@ -213,12 +183,8 @@ func TestAnalyzeConstantMapAccess(t *testing.T) {
 			templateName: "test.main",
 			expected: map[string]interface{}{
 				"profile": map[string]interface{}{
-					"c_education": map[string]interface{}{
-						"*": struct{}{},
-					},
-					"c_awards": map[string]interface{}{
-						"*": struct{}{},
-					},
+					"c_education": "*",
+					"c_awards":    "*",
 				},
 			},
 		},
@@ -244,12 +210,8 @@ func TestAnalyzeConstantMapAccess(t *testing.T) {
 			templateName: "test.main",
 			expected: map[string]interface{}{
 				"profile": map[string]interface{}{
-					"c_education": map[string]interface{}{
-						"*": struct{}{},
-					},
-					"c_awards": map[string]interface{}{
-						"*": struct{}{},
-					},
+					"c_education": "*",
+					"c_awards":    "*",
 				},
 			},
 		},
@@ -271,12 +233,8 @@ func TestAnalyzeConstantMapAccess(t *testing.T) {
 			templateName: "test.main",
 			expected: map[string]interface{}{
 				"profile": map[string]interface{}{
-					"field0": map[string]interface{}{
-						"*": struct{}{},
-					},
-					"field1": map[string]interface{}{
-						"*": struct{}{},
-					},
+					"field0": "*",
+					"field1": "*",
 				},
 			},
 		},
@@ -298,12 +256,8 @@ func TestAnalyzeConstantMapAccess(t *testing.T) {
 			templateName: "test.main",
 			expected: map[string]interface{}{
 				"profile": map[string]interface{}{
-					"field1": map[string]interface{}{
-						"*": struct{}{},
-					},
-					"field2": map[string]interface{}{
-						"*": struct{}{},
-					},
+					"field1": "*",
+					"field2": "*",
 				},
 			},
 		},
@@ -325,12 +279,8 @@ func TestAnalyzeConstantMapAccess(t *testing.T) {
 			templateName: "test.main",
 			expected: map[string]interface{}{
 				"profile": map[string]interface{}{
-					"field2": map[string]interface{}{
-						"*": struct{}{},
-					},
-					"field4": map[string]interface{}{
-						"*": struct{}{},
-					},
+					"field2": "*",
+					"field4": "*",
 				},
 			},
 		},
@@ -356,12 +306,8 @@ func TestAnalyzeConstantMapAccess(t *testing.T) {
 			templateName: "test.main",
 			expected: map[string]interface{}{
 				"profile": map[string]interface{}{
-					"c_education": map[string]interface{}{
-						"*": struct{}{},
-					},
-					"c_awards": map[string]interface{}{
-						"*": struct{}{},
-					},
+					"c_education": "*",
+					"c_awards":    "*",
 				},
 			},
 		},
@@ -390,16 +336,10 @@ func TestAnalyzeConstantMapAccess(t *testing.T) {
 			},
 			templateName: "test.main",
 			expected: map[string]interface{}{
-				"category": map[string]interface{}{
-					"*": struct{}{},
-				},
+				"category": "*",
 				"profile": map[string]interface{}{
-					"c_autoAbout": map[string]interface{}{
-						"*": struct{}{},
-					},
-					"c_lifeAbout": map[string]interface{}{
-						"*": struct{}{},
-					},
+					"c_autoAbout": "*",
+					"c_lifeAbout": "*",
 				},
 			},
 		},
@@ -435,25 +375,13 @@ func TestAnalyzeConstantMapAccess(t *testing.T) {
 			},
 			templateName: "test.main",
 			expected: map[string]interface{}{
-				"category": map[string]interface{}{
-					"*": struct{}{},
-				},
-				"about": map[string]interface{}{
-					"*": struct{}{},
-				},
+				"category": "*",
+				"about":    "*",
 				"profile": map[string]interface{}{
-					"c_autoAbout": map[string]interface{}{
-						"*": struct{}{},
-					},
-					"c_homeAbout": map[string]interface{}{
-						"*": struct{}{},
-					},
-					"c_lifeAbout": map[string]interface{}{
-						"*": struct{}{},
-					},
-					"c_about": map[string]interface{}{
-						"*": struct{}{},
-					},
+					"c_autoAbout": "*",
+					"c_homeAbout": "*",
+					"c_lifeAbout": "*",
+					"c_about":     "*",
 				},
 			},
 		},

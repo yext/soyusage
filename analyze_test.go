@@ -29,9 +29,7 @@ func TestAnalyzeParamHierarchy(t *testing.T) {
 			templateName: "test.main",
 			expected: map[string]interface{}{
 				"a": map[string]interface{}{
-					"b": map[string]interface{}{
-						"*": struct{}{},
-					},
+					"b": "*",
 				},
 			},
 		},
@@ -53,9 +51,7 @@ func TestAnalyzeParamHierarchy(t *testing.T) {
 			expected: map[string]interface{}{
 				"a": map[string]interface{}{
 					"b": map[string]interface{}{
-						"d": map[string]interface{}{
-							"*": struct{}{},
-						},
+						"d": "*",
 					},
 				},
 			},
@@ -79,14 +75,10 @@ func TestAnalyzeParamHierarchy(t *testing.T) {
 			expected: map[string]interface{}{
 				"a": map[string]interface{}{
 					"[?]": map[string]interface{}{
-						"d": map[string]interface{}{
-							"*": struct{}{},
-						},
+						"d": "*",
 					},
 				},
-				"b": map[string]interface{}{
-					"*": struct{}{},
-				},
+				"b": "*",
 			},
 		},
 		{
@@ -105,9 +97,7 @@ func TestAnalyzeParamHierarchy(t *testing.T) {
 			templateName: "test.main",
 			expected: map[string]interface{}{
 				"a": map[string]interface{}{
-					"c": map[string]interface{}{
-						"*": struct{}{},
-					},
+					"c": "*",
 				},
 			},
 		},
@@ -127,9 +117,7 @@ func TestAnalyzeParamHierarchy(t *testing.T) {
 			templateName: "test.main",
 			expected: map[string]interface{}{
 				"a": map[string]interface{}{
-					"c": map[string]interface{}{
-						"*": struct{}{},
-					},
+					"c": "*",
 				},
 			},
 		},
@@ -160,29 +148,16 @@ func TestAnalyzeParamHierarchy(t *testing.T) {
 			templateName: "test.main",
 			expected: map[string]interface{}{
 				"a": map[string]interface{}{
-					"*": struct{}{},
-					"z": map[string]interface{}{
-						"*": struct{}{},
-					},
+					"z": "*",
 				},
 				"b": map[string]interface{}{
-					"z": map[string]interface{}{
-						"*": struct{}{},
-					},
-					"v": map[string]interface{}{
-						"*": struct{}{},
-					},
+					"z": "*",
+					"v": "*",
 				},
 				"c": map[string]interface{}{
-					"e": map[string]interface{}{
-						"*": struct{}{},
-					},
-					"z": map[string]interface{}{
-						"*": struct{}{},
-					},
-					"v": map[string]interface{}{
-						"*": struct{}{},
-					},
+					"e": "*",
+					"z": "*",
+					"v": "*",
 				},
 			},
 		},
@@ -203,12 +178,8 @@ func TestAnalyzeParamHierarchy(t *testing.T) {
 			templateName: "test.main",
 			expected: map[string]interface{}{
 				"a": map[string]interface{}{
-					"b": map[string]interface{}{
-						"*": struct{}{},
-					},
-					"c": map[string]interface{}{
-						"*": struct{}{},
-					},
+					"b": "*",
+					"c": "*",
 				},
 			},
 		},
@@ -234,14 +205,10 @@ func TestAnalyzeParamHierarchy(t *testing.T) {
 			templateName: "test.main",
 			expected: map[string]interface{}{
 				"a": map[string]interface{}{
-					"z": map[string]interface{}{
-						"*": struct{}{},
-					},
+					"z": "*",
 				},
 				"b": map[string]interface{}{
-					"y": map[string]interface{}{
-						"*": struct{}{},
-					},
+					"y": "*",
 				},
 			},
 		},
@@ -263,9 +230,7 @@ func TestAnalyzeParamHierarchy(t *testing.T) {
 			templateName: "test.main",
 			expected: map[string]interface{}{
 				"a": map[string]interface{}{
-					"b": map[string]interface{}{
-						"*": struct{}{},
-					},
+					"b": "*",
 				},
 			},
 		},
@@ -292,18 +257,10 @@ func TestAnalyzeParamHierarchy(t *testing.T) {
 			templateName: "test.main",
 			expected: map[string]interface{}{
 				"a": map[string]interface{}{
-					"b": map[string]interface{}{
-						"*": struct{}{},
-					},
-					"value1": map[string]interface{}{
-						"*": struct{}{},
-					},
-					"value2": map[string]interface{}{
-						"*": struct{}{},
-					},
-					"default": map[string]interface{}{
-						"*": struct{}{},
-					},
+					"b":       "*",
+					"value1":  "*",
+					"value2":  "*",
+					"default": "*",
 				},
 			},
 		},
@@ -351,16 +308,14 @@ func jsonSprint(value interface{}) string {
 func mapUsage(params soyusage.Params) map[string]interface{} {
 	var out = make(map[string]interface{})
 	for name, param := range params {
-		mappedParam := mapUsage(param.Children)
+		var mappedParam interface{} = mapUsage(param.Children)
 		for _, usages := range param.Usage {
 			for _, usage := range usages {
 				switch usage.Type {
 				case soyusage.UsageFull:
-					mappedParam["*"] = struct{}{}
+					mappedParam = "*"
 				case soyusage.UsageUnknown:
-					mappedParam["?"] = struct{}{}
-				case soyusage.UsageRecursive:
-					mappedParam["R"] = struct{}{}
+					mappedParam = "?"
 				}
 			}
 		}

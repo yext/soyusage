@@ -658,7 +658,7 @@ func extractVariables(
 		}
 		out = append(out, v2...)
 	case *ast.TernNode:
-		if err := analyzeNode(s, UsageFull, v.Arg1); err != nil {
+		if err := analyzeNode(s, UsageReference, v.Arg1); err != nil {
 			return nil, wrapError(s, node, err)
 		}
 		v1, err := extractVariables(s, v.Arg2)

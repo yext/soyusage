@@ -22,9 +22,7 @@ func TestAnalyzeForLoops(t *testing.T) {
 			templateName: "test.main",
 			expected: map[string]interface{}{
 				"list": map[string]interface{}{
-					"field": map[string]interface{}{
-						"*": struct{}{},
-					},
+					"field": "*",
 				},
 			},
 		},
@@ -46,9 +44,7 @@ func TestAnalyzeForLoops(t *testing.T) {
 			templateName: "test.main",
 			expected: map[string]interface{}{
 				"a": map[string]interface{}{
-					"b": map[string]interface{}{
-						"*": struct{}{},
-					},
+					"b": "*",
 				},
 			},
 		},
