@@ -107,11 +107,12 @@ func analyzeNode(s *scope, usageType UsageType, node ...ast.Node) error {
 				cs.variables[v.Var] = appendConstants(cs.variables[v.Var], constants...)
 				return analyzeNode(cs, usageType, v.Body)
 			case *ast.FunctionNode:
-				var usage UsageType = UsageUnknown
+				var usage = UsageUnknown
 				switch v.Name {
 				case "isFirst", "isLast", "index", "isNonnull", "length":
 					usage = UsageMeta
 				case "keys":
+					usage = UsageMeta
 				case "augmentMap", "quoteKeysIfJs":
 					usage = UsageReference
 				case "round", "floor", "ceiling", "min", "max", "randomInt", "strContains":
@@ -126,7 +127,11 @@ func analyzeNode(s *scope, usageType UsageType, node ...ast.Node) error {
 				return analyzeNode(cs, UsageFull, v.Arg1, v.Arg2)
 			case *ast.IfNode:
 				for _, condition := range v.Conds {
-					err := analyzeNode(cs, UsageFull, condition.Cond)
+					condUsage := UsageFull
+					if _, isDataRef := condition.Cond.(*ast.DataRefNode); isDataRef {
+						condUsage = UsageExists
+					}
+					err := analyzeNode(cs, condUsage, condition.Cond)
 					if err != nil {
 						return err
 					}
@@ -300,11 +305,11 @@ func analyzeCall(
 			if call.Name == stackTemplate {
 				cycles++
 			}
-
 			if cycles > 5 {
 				return nil
 			}
 		}
+
 		scope.templateName = call.Name
 		if err := analyzeNode(scope, usageUndefined, template.Node); err != nil {
 			return wrapError(s, template.Node, err)
@@ -401,10 +406,10 @@ func recordDataRefAccess(s *scope,
 		case int:
 			nextParam = param
 		case nonConstant:
-			if _, exists := param.Children["?"]; !exists {
-				param.Children["?"] = newParam()
+			if _, exists := param.Children["[?]"]; !exists {
+				param.Children["[?]"] = newParam()
 			}
-			nextParam = param.Children["?"]
+			nextParam = param.Children["[?]"]
 		case string:
 			if _, exists := param.Children[name]; !exists {
 				param.Children[name] = newParam()
@@ -515,7 +520,7 @@ func constantValues(s *scope, node ast.Node) ([]interface{}, error) {
 			}
 			return intSetToInterface(out), nil
 		}
-		return nil, nil
+		return []interface{}{nonConstant{}}, nil
 	}
 	return nil, nil
 }

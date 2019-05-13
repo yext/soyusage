@@ -1,9 +1,10 @@
 package soyusage_test
 
 import (
+	"encoding/json"
+	"fmt"
 	"testing"
 
-	"github.com/kr/pretty"
 	"github.com/robfig/soy"
 	"github.com/robfig/soy/template"
 	"github.com/theothertomelliott/must"
@@ -77,7 +78,7 @@ func TestAnalyzeParamHierarchy(t *testing.T) {
 			templateName: "test.main",
 			expected: map[string]interface{}{
 				"a": map[string]interface{}{
-					"?": map[string]interface{}{
+					"[?]": map[string]interface{}{
 						"d": map[string]interface{}{
 							"*": struct{}{},
 						},
@@ -245,6 +246,30 @@ func TestAnalyzeParamHierarchy(t *testing.T) {
 			},
 		},
 		{
+			name: "if doesn't introduce full usage",
+			templates: map[string]string{
+				"test.soy": `
+				{namespace test}
+				/**
+				* @param a
+				*/
+				{template .main}
+					{if $a}
+						{$a.b}
+					{/if}
+				{/template}
+			`,
+			},
+			templateName: "test.main",
+			expected: map[string]interface{}{
+				"a": map[string]interface{}{
+					"b": map[string]interface{}{
+						"*": struct{}{},
+					},
+				},
+			},
+		},
+		{
 			name: "handles switch statements",
 			templates: map[string]string{
 				"test.soy": `
@@ -309,10 +334,18 @@ func testAnalyze(t *testing.T, tests []analyzeTest) {
 			must.BeEqual(t, test.expected, mapUsage(got))
 			must.BeEqualErrors(t, test.expectedErr, err)
 			if t.Failed() {
-				t.Log(pretty.Sprint(mapUsageFull(registry, got)))
+				t.Log(jsonSprint(mapUsageFull(registry, got)))
 			}
 		})
 	}
+}
+
+func jsonSprint(value interface{}) string {
+	out, err := json.MarshalIndent(value, "", "  ")
+	if err != nil {
+		panic(err)
+	}
+	return string(out)
 }
 
 func mapUsage(params soyusage.Params) map[string]interface{} {
@@ -326,6 +359,8 @@ func mapUsage(params soyusage.Params) map[string]interface{} {
 					mappedParam["*"] = struct{}{}
 				case soyusage.UsageUnknown:
 					mappedParam["?"] = struct{}{}
+				case soyusage.UsageRecursive:
+					mappedParam["R"] = struct{}{}
 				}
 			}
 		}
@@ -346,10 +381,18 @@ func mapUsageFull(registry *template.Registry, params soyusage.Params) map[strin
 			for _, usage := range usages {
 				var usageValue = map[string]interface{}{}
 				switch usage.Type {
+				case soyusage.UsageRecursive:
+					usageValue["Type"] = "Recursive"
 				case soyusage.UsageFull:
-					usageValue["Type"] = "*"
+					usageValue["Type"] = "Full"
 				case soyusage.UsageUnknown:
-					usageValue["Type"] = "?"
+					usageValue["Type"] = "Unknown"
+				case soyusage.UsageReference:
+					usageValue["Type"] = "Reference"
+				case soyusage.UsageMeta:
+					usageValue["Type"] = "Meta"
+				default:
+					usageValue["Type"] = fmt.Sprint(usage.Type)
 				}
 				usageValue["Template"] = usage.Template
 				usageValue["File"] = registry.Filename(usage.Template)

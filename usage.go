@@ -3,7 +3,7 @@ package soyusage
 import "github.com/robfig/soy/ast"
 
 const (
-	usageUndefined = iota
+	usageUndefined UsageType = iota
 	// UsageFull indicates that the whole parameter is used
 	// This usually means that it's value was printed.
 	UsageFull
@@ -16,6 +16,11 @@ const (
 	// UsageReference indicates that the parameter was used in a reference,
 	// such as a parameter to a call or assigned to a variable.
 	UsageReference
+	// UsageExists indicates that the parameter was used in an if check to determine
+	// if it had a value
+	UsageExists
+	// UsageRecursive indicates that the parameter was passed in a recursive call
+	UsageRecursive
 )
 
 // Usage provides details of the manner in which a param was used.
