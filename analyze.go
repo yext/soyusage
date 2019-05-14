@@ -323,6 +323,11 @@ func analyzeCall(
 				if err != nil {
 					return wrapError(s, parameter, err)
 				}
+				constants, err := extractConstantVariables(s, v.Content)
+				if err != nil {
+					return wrapError(s, parameter, err)
+				}
+				scope.variables[v.Key] = append(scope.variables[v.Key], constants...)
 			case *ast.CallParamValueNode:
 				variables, err := extractVariables(s, v.Value)
 				if err != nil {

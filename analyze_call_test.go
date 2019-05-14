@@ -76,18 +76,24 @@ func TestAnalyzeCall(t *testing.T) {
 				{namespace test}
 				/**
 				* @param data
+				* @param altValue
 				*/
 				{template .main}
 					{call .callee data="$data"}
+						{param x}
+							{$altValue}
+						{/param}
 					{/call}
 				{/template}
 
 				/**
 				* @param child
+				* @param x
 				*/
 				{template .callee}
-					{$child.value}
+					{$x}
 					{call .callee data="$child.data"}
+						{param x: $child.value /}
 					{/call}
 				{/template}
 			`,
@@ -99,12 +105,13 @@ func TestAnalyzeCall(t *testing.T) {
 						"data": map[string]interface{}{
 							"child": map[string]interface{}{
 								"data":  struct{}{},
-								"value": "*",
+								"value": struct{}{},
 							},
 						},
 						"value": "*",
 					},
 				},
+				"altValue": "*",
 			},
 		},
 	}
