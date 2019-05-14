@@ -39,80 +39,6 @@ func AnalyzeTemplate(name string, registry *template.Registry) (Params, error) {
 	return filteredParams, nil
 }
 
-// scope represents the usage at the current position in the stack
-type scope struct {
-	registry     *template.Registry
-	templateName string
-	callStack    []*scope
-	parameters   Params
-	variables    map[string][]*Param
-}
-
-// isRecursive returns true iff this scope is part of a recursive call stack
-// A call stack is considered recursive if any templates appear in the call stack more than once.
-func (s *scope) isRecursive() bool {
-	return s.callCycles() > 1
-}
-
-// callCycles returns the number of cycles in this scope's call stack
-func (s *scope) callCycles() int {
-	var cycles int
-	for _, stackCall := range s.callStack {
-		if stackCall.templateName == s.templateName {
-			cycles++
-		}
-	}
-	return cycles
-}
-
-func (s *scope) finalCycle() *scope {
-	var cycle *scope
-	for _, stackCall := range s.callStack {
-		if stackCall.templateName == s.templateName {
-			cycle = stackCall
-		}
-	}
-	return cycle
-}
-
-// inner creates a new scope "inside" the current scope
-// The new scope has all the same state, but a new set of variables
-// is created so assignments don't escape up the stack.
-func (s *scope) inner() *scope {
-	out := &scope{
-		registry:     s.registry,
-		templateName: s.templateName,
-		callStack:    nil,
-		parameters:   s.parameters,
-		variables:    make(map[string][]*Param),
-	}
-
-	for _, template := range s.callStack {
-		out.callStack = append(out.callStack, template)
-	}
-
-	for name, params := range s.variables {
-		out.variables[name] = params
-	}
-	return out
-}
-
-// call creates a child scope as a result of a call
-func (s *scope) call(templateName string) *scope {
-	out := &scope{
-		registry:     s.registry,
-		templateName: templateName,
-		parameters:   s.parameters,
-		variables:    make(map[string][]*Param),
-	}
-
-	for _, template := range s.callStack {
-		out.callStack = append(out.callStack, template)
-	}
-	out.callStack = append(out.callStack, s)
-	return out
-}
-
 func analyzeNode(s *scope, usageType UsageType, node ...ast.Node) error {
 	// Create a new scope for this set of nodes
 	cs := s.inner()
@@ -296,160 +222,6 @@ func analyzeNode(s *scope, usageType UsageType, node ...ast.Node) error {
 	return nil
 }
 
-func analyzeCall(
-	s *scope,
-	call *ast.CallNode,
-) error {
-	var scopes []*scope
-	template, found := s.registry.Template(call.Name)
-	if !found {
-		return newErrorf(s, call, "template not found: %s", call.Name)
-	}
-
-	callScope := s.call(call.Name)
-	if callScope.isRecursive() {
-		return analyzeRecursiveCall(s, call)
-	}
-	if !call.AllData {
-		callScope.parameters = make(Params)
-	}
-
-	scopes = []*scope{
-		callScope,
-	}
-	if call.Data != nil {
-		variables, err := extractVariables(s, call.Data)
-		if err != nil {
-			return wrapError(s, call.Data, err)
-		}
-		for _, param := range variables {
-			dataScope := s.call(call.Name)
-			dataScope.parameters = param.Children
-			scopes = append(scopes, dataScope)
-		}
-	}
-
-	for _, scope := range scopes {
-		for _, parameter := range call.Params {
-			switch v := parameter.(type) {
-			case *ast.CallParamContentNode:
-				err := analyzeNode(s, UsageFull, v.Content)
-				if err != nil {
-					return wrapError(s, parameter, err)
-				}
-				constants, err := extractConstantVariables(s, v.Content)
-				if err != nil {
-					return wrapError(s, parameter, err)
-				}
-				scope.variables[v.Key] = append(scope.variables[v.Key], constants...)
-			case *ast.CallParamValueNode:
-				variables, err := extractVariables(s, v.Value)
-				if err != nil {
-					return wrapError(s, parameter, err)
-				}
-				scope.variables[v.Key] = append(scope.variables[v.Key], variables...)
-			}
-		}
-
-		if err := analyzeNode(scope, usageUndefined, template.Node); err != nil {
-			return wrapError(s, template.Node, err)
-		}
-	}
-	return nil
-}
-
-func templateParams(s *scope) []string {
-	template, found := s.registry.Template(s.templateName)
-	if !found {
-		return nil
-	}
-	var out []string
-	for _, param := range template.Doc.Params {
-		out = append(out, param.Name)
-	}
-	return out
-}
-
-func analyzeRecursiveCall(
-	s *scope,
-	call *ast.CallNode,
-) error {
-	var scopes []*scope
-	callScope := s.call(call.Name)
-	s = callScope.finalCycle()
-	if call.AllData {
-		expectedParams := templateParams(s)
-		for _, expected := range expectedParams {
-			for _, param := range s.variables[expected] {
-				dataScope := s.call(call.Name)
-				for _, expected := range expectedParams {
-					if param, hasParameter := s.parameters[expected]; hasParameter {
-						p := newParam(expected)
-						p.RecursesTo = param
-						dataScope.parameters[expected] = p
-					}
-				}
-				for _, value := range param.Children {
-					p := newParam(value.name)
-					p.RecursesTo = value
-					dataScope.parameters[value.name] = p
-				}
-				scopes = append(scopes, dataScope)
-			}
-		}
-	}
-
-	if call.Data != nil {
-		variables, err := extractVariables(s, call.Data)
-		if err != nil {
-			return wrapError(s, call.Data, err)
-		}
-		expectedParams := templateParams(s)
-		for _, param := range variables {
-			dataScope := s.call(call.Name)
-			for _, expected := range expectedParams {
-				if param, hasParameter := s.parameters[expected]; hasParameter {
-					p := newParam(expected)
-					p.RecursesTo = param
-					dataScope.parameters[expected] = p
-				}
-			}
-			for _, value := range param.Children {
-				p := newParam(value.name)
-				p.RecursesTo = value
-				dataScope.parameters[value.name] = p
-			}
-			scopes = append(scopes, dataScope)
-		}
-	}
-
-	for _, scope := range scopes {
-		for _, parameter := range call.Params {
-			switch v := parameter.(type) {
-			case *ast.CallParamContentNode:
-				err := analyzeNode(s, UsageFull, v.Content)
-				if err != nil {
-					return wrapError(s, parameter, err)
-				}
-			case *ast.CallParamValueNode:
-				variables, err := extractVariables(s, v.Value)
-				if err != nil {
-					return wrapError(s, parameter, err)
-				}
-				for _, variable := range variables {
-					if variable.isConstant() {
-						continue
-					}
-					p := newParam(variable.name)
-					p.RecursesTo = variable
-					scope.parameters[variable.name] = p
-				}
-			}
-		}
-	}
-	return nil
-}
-
 func findParams(
 	s *scope,
 	name string,
@@ -463,98 +235,6 @@ func findParams(
 	return []*Param{
 		s.parameters[name],
 	}, nil
-}
-
-func recordDataRef(
-	s *scope,
-	usageType UsageType,
-	node *ast.DataRefNode,
-) ([]*Param, error) {
-	if usageType == usageUndefined {
-		return nil, newErrorf(s, node, "usage type was not set")
-	}
-
-	params, err := findParams(s, node.Key)
-	if err != nil {
-		return nil, wrapError(s, node, err)
-	}
-
-	var out []*Param
-
-	for _, param := range params {
-		// Skip constants
-		if param.isConstant() {
-			continue
-		}
-		leaves, err := recordDataRefAccess(s, usageType, param, node.Access)
-		if err != nil {
-			return nil, wrapError(s, node, err)
-		}
-
-		for _, leaf := range leaves {
-			templateUsage := leaf.Usage[s.templateName]
-			leaf.Usage[s.templateName] = append(templateUsage, Usage{
-				Template: s.templateName,
-				Type:     usageType,
-				node:     node,
-			})
-		}
-		out = append(out, leaves...)
-	}
-
-	return out, nil
-}
-
-func recordDataRefAccess(s *scope,
-	usageType UsageType,
-	param *Param,
-	access []ast.Node) ([]*Param, error) {
-	if len(access) == 0 {
-		return []*Param{param}, nil
-	}
-
-	head := access[0]
-	var names []interface{}
-	switch access := head.(type) {
-	case *ast.DataRefKeyNode:
-		names = []interface{}{access.Key}
-	case *ast.DataRefIndexNode:
-		names = []interface{}{access.Index}
-	case *ast.DataRefExprNode:
-		constantValues, err := constantValues(s, access.Arg)
-		if err != nil {
-			return nil, wrapError(s, access, err)
-		}
-		names = append(names, constantValues...)
-		err = analyzeNode(s, UsageFull, access.Arg)
-		if err != nil {
-			return nil, wrapError(s, access, err)
-		}
-	}
-	var out []*Param
-	for _, n := range names {
-		var nextParam *Param
-		switch name := n.(type) {
-		case int:
-			nextParam = param
-		case nonConstant:
-			if _, exists := param.Children["[?]"]; !exists {
-				param.Children["[?]"] = newParam("[?]")
-			}
-			nextParam = param.Children["[?]"]
-		case string:
-			if _, exists := param.Children[name]; !exists {
-				param.Children[name] = newParam(name)
-			}
-			nextParam = param.Children[name]
-		}
-		leaves, err := recordDataRefAccess(s, usageType, nextParam, access[1:])
-		if err != nil {
-			return nil, wrapError(s, head, err)
-		}
-		out = append(out, leaves...)
-	}
-	return out, nil
 }
 
 func constantValues(s *scope, node ast.Node) ([]interface{}, error) {
@@ -839,6 +519,18 @@ func appendConstants(params []*Param, constants ...interface{}) []*Param {
 		p := newParam("")
 		p.constant = value
 		out = append(out, p)
+	}
+	return out
+}
+
+func templateParams(s *scope) []string {
+	template, found := s.registry.Template(s.templateName)
+	if !found {
+		return nil
+	}
+	var out []string
+	for _, param := range template.Doc.Params {
+		out = append(out, param.Name)
 	}
 	return out
 }
