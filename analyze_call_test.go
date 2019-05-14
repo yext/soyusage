@@ -70,7 +70,36 @@ func TestAnalyzeCall(t *testing.T) {
 			},
 		},
 		{
-			name: "handles call cycle",
+			name: "handles simple cycle",
+			templates: map[string]string{
+				"test.soy": `
+				{namespace test}
+				/**
+				* @param data
+				* @param x
+				*/
+				{template .callee}
+					{$x}
+					{call .callee data="$data.child"}
+						{param x: $data.value /}
+					{/call}
+				{/template}
+			`,
+			},
+			templateName: "test.callee",
+			expected: map[string]interface{}{
+				"data": map[string]interface{}{
+					"child": map[string]interface{}{
+						"data":  "R",
+						"value": "R",
+					},
+					"value": "*",
+				},
+				"x": "*",
+			},
+		},
+		{
+			name: "handles nested call cycle",
 			templates: map[string]string{
 				"test.soy": `
 				{namespace test}
@@ -103,12 +132,8 @@ func TestAnalyzeCall(t *testing.T) {
 				"data": map[string]interface{}{
 					"child": map[string]interface{}{
 						"data": map[string]interface{}{
-							"child": map[string]interface{}{
-								"data": map[string]interface{}{
-									"child": "R",
-								},
-								"value": "R",
-							},
+							"child": "R",
+							"value": "R",
 						},
 						"value": "*",
 					},

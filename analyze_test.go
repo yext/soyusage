@@ -308,11 +308,11 @@ func jsonSprint(value interface{}) string {
 func mapUsage(params soyusage.Params) map[string]interface{} {
 	var out = make(map[string]interface{})
 	for name, param := range params {
-		var mappedParam interface{} = mapUsage(param.Children)
-		if param.IsRecursive {
+		if param.IsRecursive() {
 			out[name] = "R"
 			continue
 		}
+		var mappedParam interface{} = mapUsage(param.Children)
 		for _, usages := range param.Usage {
 			for _, usage := range usages {
 				switch usage.Type {

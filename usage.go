@@ -29,12 +29,14 @@ type (
 	// Param defines a single parameter, or field within a parent parameter.
 	// It contains details of how the parameter was used within the analyzed templates.
 	Param struct {
+		name string // placeholder for the parameter name for reference
+
 		// Children identifies all fields within this Param
 		Children Params
 		// Usage describes how this parameter or field was used
 		Usage UsageByTemplate
 
-		IsRecursive bool
+		RecursesTo *Param
 
 		// A constant value for this param
 		constant interface{}
@@ -55,6 +57,10 @@ type (
 	UsageByTemplate map[string][]Usage
 )
 
+func (p *Param) IsRecursive() bool {
+	return p.RecursesTo != nil
+}
+
 // Node provides a reference to the AST node where the param was used.
 // This can be used with the Template name and template.Registry to identify
 // where in the file the usage occurred.
@@ -66,8 +72,9 @@ func (p *Param) isConstant() bool {
 	return p.constant != nil
 }
 
-func newParam() *Param {
+func newParam(name string) *Param {
 	return &Param{
+		name:     name,
 		Children: make(Params),
 		Usage:    make(UsageByTemplate),
 	}

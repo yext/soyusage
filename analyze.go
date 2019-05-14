@@ -51,7 +51,7 @@ type scope struct {
 // isRecursive returns true iff this scope is part of a recursive call stack
 // A call stack is considered recursive if any templates appear in the call stack more than once.
 func (s *scope) isRecursive() bool {
-	return s.callCycles() > 0
+	return s.callCycles() > 1
 }
 
 // callCycles returns the number of cycles in this scope's call stack
@@ -63,6 +63,16 @@ func (s *scope) callCycles() int {
 		}
 	}
 	return cycles
+}
+
+func (s *scope) finalCycle() *scope {
+	var cycle *scope
+	for _, stackCall := range s.callStack {
+		if stackCall.templateName == s.templateName {
+			cycle = stackCall
+		}
+	}
+	return cycle
 }
 
 // inner creates a new scope "inside" the current scope
@@ -297,9 +307,13 @@ func analyzeCall(
 	}
 
 	callScope := s.call(call.Name)
+	if callScope.isRecursive() {
+		return analyzeRecursiveCall(s, call)
+	}
 	if !call.AllData {
 		callScope.parameters = make(Params)
 	}
+
 	scopes = []*scope{
 		callScope,
 	}
@@ -336,24 +350,87 @@ func analyzeCall(
 				scope.variables[v.Key] = append(scope.variables[v.Key], variables...)
 			}
 		}
-		if s.callCycles() > 1 {
-			continue
-		}
 
-		scope.templateName = call.Name
 		if err := analyzeNode(scope, usageUndefined, template.Node); err != nil {
 			return wrapError(s, template.Node, err)
 		}
 	}
-	for _, scope := range scopes {
-		if s.isRecursive() {
-			for _, variables := range scope.variables {
-				for _, variable := range variables {
-					variable.IsRecursive = true
+	return nil
+}
+
+func templateParams(s *scope) []string {
+	template, found := s.registry.Template(s.templateName)
+	if !found {
+		return nil
+	}
+	var out []string
+	for _, param := range template.Doc.Params {
+		out = append(out, param.Name)
+	}
+	return out
+}
+
+func analyzeRecursiveCall(
+	s *scope,
+	call *ast.CallNode,
+) error {
+	var scopes []*scope
+	callScope := s.call(call.Name)
+	s = callScope.finalCycle()
+	if !call.AllData {
+		// TODO: This needs to recursively map to the base
+		callScope.parameters = make(Params)
+	}
+
+	if call.Data != nil {
+		variables, err := extractVariables(s, call.Data)
+		if err != nil {
+			return wrapError(s, call.Data, err)
+		}
+		expectedParams := templateParams(callScope)
+		for _, param := range variables {
+			dataScope := s.call(call.Name)
+			for _, expected := range expectedParams {
+				if param, hasParameter := s.parameters[expected]; hasParameter {
+					p := newParam(expected)
+					p.RecursesTo = param
+					dataScope.parameters[expected] = p
 				}
 			}
-			for _, param := range scope.parameters {
-				param.IsRecursive = true
+			for _, value := range param.Children {
+				p := newParam(value.name)
+				p.RecursesTo = value
+				dataScope.parameters[value.name] = p
+			}
+			scopes = append(scopes, dataScope)
+		}
+	}
+
+	for _, scope := range scopes {
+		for _, parameter := range call.Params {
+			switch v := parameter.(type) {
+			case *ast.CallParamContentNode:
+				err := analyzeNode(s, UsageFull, v.Content)
+				if err != nil {
+					return wrapError(s, parameter, err)
+				}
+			case *ast.CallParamValueNode:
+				err := analyzeNode(s, UsageFull, v.Value)
+				if err != nil {
+					return wrapError(s, parameter, err)
+				}
+				variables, err := extractVariables(s, v.Value)
+				if err != nil {
+					return wrapError(s, parameter, err)
+				}
+				for _, variable := range variables {
+					if variable.isConstant() {
+						continue
+					}
+					p := newParam(variable.name)
+					p.RecursesTo = variable
+					scope.parameters[variable.name] = p
+				}
 			}
 		}
 	}
@@ -368,7 +445,7 @@ func findParams(
 		return params, nil
 	}
 	if _, exists := s.parameters[name]; !exists {
-		s.parameters[name] = newParam()
+		s.parameters[name] = newParam(name)
 	}
 	return []*Param{
 		s.parameters[name],
@@ -449,12 +526,12 @@ func recordDataRefAccess(s *scope,
 			nextParam = param
 		case nonConstant:
 			if _, exists := param.Children["[?]"]; !exists {
-				param.Children["[?]"] = newParam()
+				param.Children["[?]"] = newParam("[?]")
 			}
 			nextParam = param.Children["[?]"]
 		case string:
 			if _, exists := param.Children[name]; !exists {
-				param.Children[name] = newParam()
+				param.Children[name] = newParam(name)
 			}
 			nextParam = param.Children[name]
 		}
@@ -594,7 +671,7 @@ func extractConstantVariables(
 		var params []*Param
 		switch v := l.Nodes[0].(type) {
 		case *ast.RawTextNode:
-			p := newParam()
+			p := newParam("")
 			p.constant = v.String()
 			params = append(params, p)
 		case *ast.SwitchNode:
@@ -632,7 +709,7 @@ func extractConstantVariables(
 					return nil, wrapError(s, v, err)
 				}
 				for _, value := range constants {
-					p := newParam()
+					p := newParam("")
 					p.constant = fmt.Sprint(value)
 					params = append(params, p)
 				}
@@ -653,11 +730,11 @@ func extractVariables(
 	var out []*Param
 	switch v := node.(type) {
 	case *ast.StringNode:
-		p := newParam()
+		p := newParam("")
 		p.constant = v.Value
 		out = append(out, p)
 	case *ast.IntNode:
-		p := newParam()
+		p := newParam("")
 		p.constant = int(v.Value)
 		out = append(out, p)
 	case *ast.ListLiteralNode:
@@ -746,7 +823,7 @@ func (n nonConstant) String() string {
 func appendConstants(params []*Param, constants ...interface{}) []*Param {
 	out := params
 	for _, value := range constants {
-		p := newParam()
+		p := newParam("")
 		p.constant = value
 		out = append(out, p)
 	}
