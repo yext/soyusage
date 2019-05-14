@@ -48,6 +48,23 @@ type scope struct {
 	variables    map[string][]*Param
 }
 
+// isRecursive returns true iff this scope is part of a recursive call stack
+// A call stack is considered recursive if any templates appear in the call stack more than once.
+func (s *scope) isRecursive() bool {
+	return s.callCycles() > 0
+}
+
+// callCycles returns the number of cycles in this scope's call stack
+func (s *scope) callCycles() int {
+	var cycles int
+	for _, stackCall := range s.callStack {
+		if stackCall.templateName == s.templateName {
+			cycles++
+		}
+	}
+	return cycles
+}
+
 // inner creates a new scope "inside" the current scope
 // The new scope has all the same state, but a new set of variables
 // is created so assignments don't escape up the stack.
@@ -314,14 +331,8 @@ func analyzeCall(
 				scope.variables[v.Key] = variables
 			}
 		}
-		var cycles int
-		for _, stackCall := range scope.callStack {
-			if call.Name == stackCall.templateName {
-				cycles++
-			}
-			if cycles > 1 {
-				return nil
-			}
+		if s.callCycles() > 0 {
+			return nil
 		}
 
 		scope.templateName = call.Name
