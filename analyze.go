@@ -41,11 +41,11 @@ func AnalyzeTemplate(name string, registry *template.Registry) (Params, error) {
 
 // scope represents the usage at the current position in the stack
 type scope struct {
-	registry      *template.Registry
-	templateName  string
-	templateStack []string
-	parameters    Params
-	variables     map[string][]*Param
+	registry     *template.Registry
+	templateName string
+	callStack    []*scope
+	parameters   Params
+	variables    map[string][]*Param
 }
 
 // inner creates a new scope "inside" the current scope
@@ -53,20 +53,36 @@ type scope struct {
 // is created so assignments don't escape up the stack.
 func (s *scope) inner() *scope {
 	out := &scope{
-		registry:      s.registry,
-		templateName:  s.templateName,
-		templateStack: nil,
-		parameters:    s.parameters,
-		variables:     make(map[string][]*Param),
+		registry:     s.registry,
+		templateName: s.templateName,
+		callStack:    nil,
+		parameters:   s.parameters,
+		variables:    make(map[string][]*Param),
 	}
 
-	for _, template := range s.templateStack {
-		out.templateStack = append(out.templateStack, template)
+	for _, template := range s.callStack {
+		out.callStack = append(out.callStack, template)
 	}
 
 	for name, params := range s.variables {
 		out.variables[name] = params
 	}
+	return out
+}
+
+// call creates a child scope as a result of a call
+func (s *scope) call(templateName string) *scope {
+	out := &scope{
+		registry:     s.registry,
+		templateName: templateName,
+		parameters:   s.parameters,
+		variables:    make(map[string][]*Param),
+	}
+
+	for _, template := range s.callStack {
+		out.callStack = append(out.callStack, template)
+	}
+	out.callStack = append(out.callStack, s)
 	return out
 }
 
@@ -263,7 +279,7 @@ func analyzeCall(
 		return newErrorf(s, call, "template not found: %s", call.Name)
 	}
 
-	callScope := s.inner()
+	callScope := s.call(call.Name)
 	if !call.AllData {
 		callScope.parameters = make(Params)
 	}
@@ -276,8 +292,7 @@ func analyzeCall(
 			return wrapError(s, call.Data, err)
 		}
 		for _, param := range variables {
-			dataScope := s.inner()
-			dataScope.variables = make(map[string][]*Param)
+			dataScope := s.call(call.Name)
 			dataScope.parameters = param.Children
 			scopes = append(scopes, dataScope)
 		}
@@ -299,10 +314,9 @@ func analyzeCall(
 				scope.variables[v.Key] = variables
 			}
 		}
-		scope.templateStack = append(scope.templateStack, scope.templateName)
 		var cycles int
-		for _, stackTemplate := range scope.templateStack {
-			if call.Name == stackTemplate {
+		for _, stackCall := range scope.callStack {
+			if call.Name == stackCall.templateName {
 				cycles++
 			}
 			if cycles > 1 {
