@@ -377,17 +377,13 @@ func analyzeRecursiveCall(
 	var scopes []*scope
 	callScope := s.call(call.Name)
 	s = callScope.finalCycle()
-	if !call.AllData {
-		// TODO: This needs to recursively map to the base
-		callScope.parameters = make(Params)
-	}
 
-	if call.Data != nil {
+	if call.AllData || call.Data != nil {
 		variables, err := extractVariables(s, call.Data)
 		if err != nil {
 			return wrapError(s, call.Data, err)
 		}
-		expectedParams := templateParams(callScope)
+		expectedParams := templateParams(s)
 		for _, param := range variables {
 			dataScope := s.call(call.Name)
 			for _, expected := range expectedParams {
@@ -415,10 +411,6 @@ func analyzeRecursiveCall(
 					return wrapError(s, parameter, err)
 				}
 			case *ast.CallParamValueNode:
-				err := analyzeNode(s, UsageFull, v.Value)
-				if err != nil {
-					return wrapError(s, parameter, err)
-				}
 				variables, err := extractVariables(s, v.Value)
 				if err != nil {
 					return wrapError(s, parameter, err)
