@@ -104,8 +104,10 @@ func TestAnalyzeCall(t *testing.T) {
 					"child": map[string]interface{}{
 						"data": map[string]interface{}{
 							"child": map[string]interface{}{
-								"data":  struct{}{},
-								"value": struct{}{},
+								"data": map[string]interface{}{
+									"child": "R",
+								},
+								"value": "R",
 							},
 						},
 						"value": "*",

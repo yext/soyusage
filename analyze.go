@@ -333,16 +333,28 @@ func analyzeCall(
 				if err != nil {
 					return wrapError(s, parameter, err)
 				}
-				scope.variables[v.Key] = variables
+				scope.variables[v.Key] = append(scope.variables[v.Key], variables...)
 			}
 		}
-		if s.callCycles() > 0 {
-			return nil
+		if s.callCycles() > 1 {
+			continue
 		}
 
 		scope.templateName = call.Name
 		if err := analyzeNode(scope, usageUndefined, template.Node); err != nil {
 			return wrapError(s, template.Node, err)
+		}
+	}
+	for _, scope := range scopes {
+		if s.isRecursive() {
+			for _, variables := range scope.variables {
+				for _, variable := range variables {
+					variable.IsRecursive = true
+				}
+			}
+			for _, param := range scope.parameters {
+				param.IsRecursive = true
+			}
 		}
 	}
 	return nil

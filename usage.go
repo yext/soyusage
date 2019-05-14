@@ -19,8 +19,6 @@ const (
 	// UsageExists indicates that the parameter was used in an if check to determine
 	// if it had a value
 	UsageExists
-	// UsageRecursive indicates that the parameter was passed in a recursive call
-	UsageRecursive
 )
 
 // Usage provides details of the manner in which a param was used.
@@ -35,6 +33,8 @@ type (
 		Children Params
 		// Usage describes how this parameter or field was used
 		Usage UsageByTemplate
+
+		IsRecursive bool
 
 		// A constant value for this param
 		constant interface{}

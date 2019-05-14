@@ -309,6 +309,10 @@ func mapUsage(params soyusage.Params) map[string]interface{} {
 	var out = make(map[string]interface{})
 	for name, param := range params {
 		var mappedParam interface{} = mapUsage(param.Children)
+		if param.IsRecursive {
+			out[name] = "R"
+			continue
+		}
 		for _, usages := range param.Usage {
 			for _, usage := range usages {
 				switch usage.Type {
@@ -336,8 +340,6 @@ func mapUsageFull(registry *template.Registry, params soyusage.Params) map[strin
 			for _, usage := range usages {
 				var usageValue = map[string]interface{}{}
 				switch usage.Type {
-				case soyusage.UsageRecursive:
-					usageValue["Type"] = "Recursive"
 				case soyusage.UsageFull:
 					usageValue["Type"] = "Full"
 				case soyusage.UsageUnknown:
