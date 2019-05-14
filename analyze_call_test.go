@@ -118,11 +118,14 @@ func TestAnalyzeCall(t *testing.T) {
 				/**
 				* @param child
 				* @param x
+				* @param? y
 				*/
 				{template .callee}
 					{$x}
+					{$y}
 					{call .callee data="$child.data"}
 						{param x: $child.value /}
+						{param y}constant{/param}
 					{/call}
 				{/template}
 			`,
@@ -137,6 +140,7 @@ func TestAnalyzeCall(t *testing.T) {
 						},
 						"value": "*",
 					},
+					"y": "*",
 				},
 				"altValue": "*",
 			},
