@@ -377,8 +377,29 @@ func analyzeRecursiveCall(
 	var scopes []*scope
 	callScope := s.call(call.Name)
 	s = callScope.finalCycle()
+	if call.AllData {
+		expectedParams := templateParams(s)
+		for _, expected := range expectedParams {
+			for _, param := range s.variables[expected] {
+				dataScope := s.call(call.Name)
+				for _, expected := range expectedParams {
+					if param, hasParameter := s.parameters[expected]; hasParameter {
+						p := newParam(expected)
+						p.RecursesTo = param
+						dataScope.parameters[expected] = p
+					}
+				}
+				for _, value := range param.Children {
+					p := newParam(value.name)
+					p.RecursesTo = value
+					dataScope.parameters[value.name] = p
+				}
+				scopes = append(scopes, dataScope)
+			}
+		}
+	}
 
-	if call.AllData || call.Data != nil {
+	if call.Data != nil {
 		variables, err := extractVariables(s, call.Data)
 		if err != nil {
 			return wrapError(s, call.Data, err)

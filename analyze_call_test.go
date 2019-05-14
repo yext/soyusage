@@ -141,6 +141,44 @@ func TestAnalyzeCall(t *testing.T) {
 				"altValue": "*",
 			},
 		},
+		{
+			name: "handles nested cycle with all data",
+			templates: map[string]string{
+				"test.soy": `
+				{namespace test}
+				/**
+				* @param data
+				* @param altValue
+				*/
+				{template .main}
+					{call .callee data="$data"}
+						{param x}
+							{$altValue}
+						{/param}
+					{/call}
+				{/template}
+
+				/**
+				* @param child
+				* @param x
+				*/
+				{template .callee}
+					{$x}
+					{call .callee data="all"}
+						{param x: $child.value /}
+					{/call}
+				{/template}
+			`,
+			},
+			templateName: "test.main",
+			expected: map[string]interface{}{
+				"data": map[string]interface{}{
+					"child": "R",
+					"value": "R",
+				},
+				"altValue": "*",
+			},
+		},
 	}
 	testAnalyze(t, tests)
 }
