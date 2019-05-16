@@ -31,8 +31,6 @@ type (
 	// Param defines a single parameter, or field within a parent parameter.
 	// It contains details of how the parameter was used within the analyzed templates.
 	Param struct {
-		parent *Param
-
 		// Children identifies all fields within this Param
 		Children Params
 		// Usage describes how this parameter or field was used
@@ -57,8 +55,18 @@ type (
 	UsageByTemplate map[string][]Usage
 )
 
+func (p *Param) addUsageToLeaves(usage Usage) {
+	p.Usage[usage.Template] = append(p.Usage[usage.Template], usage)
+	if len(p.Children) == 0 {
+		p.Usage[usage.Template] = append(p.Usage[usage.Template], usage)
+		return
+	}
+	for _, child := range p.Children {
+		child.addUsageToLeaves(usage)
+	}
+}
+
 func (p *Param) addChild(name string, child *Param) *Param {
-	child.parent = p
 	p.Children[name] = child
 	return child
 }

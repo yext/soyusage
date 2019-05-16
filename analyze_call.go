@@ -19,10 +19,6 @@ func analyzeCall(
 		callScope.parameters = make(Params)
 	}
 
-	scopes = []*scope{
-		callScope,
-	}
-
 	if call.Data != nil {
 		variables, err := extractVariables(s, call.Data)
 		if err != nil {
@@ -33,6 +29,8 @@ func analyzeCall(
 			dataScope.parameters = param.Children
 			scopes = append(scopes, dataScope)
 		}
+	} else {
+		scopes = append(scopes, callScope)
 	}
 
 	if callScope.callCycles() > s.config.RecursionDepth {
