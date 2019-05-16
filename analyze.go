@@ -113,7 +113,7 @@ func analyzeNode(s *scope, usageType UsageType, node ...ast.Node) error {
 				case "keys":
 					usage = UsageMeta
 				case "augmentMap", "quoteKeysIfJs":
-					usage = usageReference
+					usage = UsageReference
 				case "round", "floor", "ceiling", "min", "max", "randomInt", "strContains":
 					usage = UsageFull
 				}
@@ -477,7 +477,7 @@ func extractVariables(
 			out = append(out, p...)
 		}
 	case *ast.DataRefNode:
-		p, err := recordDataRef(s, usageReference, v)
+		p, err := recordDataRef(s, UsageReference, v)
 		if err != nil {
 			return nil, wrapError(s, node, err)
 		}
@@ -500,7 +500,7 @@ func extractVariables(
 		}
 		out = append(out, v2...)
 	case *ast.TernNode:
-		if err := analyzeNode(s, usageReference, v.Arg1); err != nil {
+		if err := analyzeNode(s, UsageReference, v.Arg1); err != nil {
 			return nil, wrapError(s, node, err)
 		}
 		v1, err := extractVariables(s, v.Arg2)

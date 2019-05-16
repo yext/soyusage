@@ -18,10 +18,9 @@ const (
 	// UsageExists indicates that the parameter was used in an if check to determine
 	// if it had a value
 	UsageExists
-
 	// UsageReference indicates that the parameter was used in a reference,
 	// such as a parameter to a call or assigned to a variable.
-	usageReference
+	UsageReference
 )
 
 // Usage provides details of the manner in which a param was used.
