@@ -15,12 +15,13 @@ const (
 	UsageUnknown
 	// UsageMeta indicates that a meta property of the parameter was used (length, isFirst, isLast, etc)
 	UsageMeta
-	// UsageReference indicates that the parameter was used in a reference,
-	// such as a parameter to a call or assigned to a variable.
-	UsageReference
 	// UsageExists indicates that the parameter was used in an if check to determine
 	// if it had a value
 	UsageExists
+
+	// UsageReference indicates that the parameter was used in a reference,
+	// such as a parameter to a call or assigned to a variable.
+	usageReference
 )
 
 // Usage provides details of the manner in which a param was used.
@@ -56,8 +57,14 @@ type (
 )
 
 func (p *Param) addUsageToLeaves(usage Usage) {
-	p.Usage[usage.Template] = append(p.Usage[usage.Template], usage)
 	if len(p.Children) == 0 {
+		for _, otherUsage := range p.Usage[usage.Template] {
+			if otherUsage.Template == usage.Template &&
+				otherUsage.Type == usage.Type &&
+				otherUsage.node.Position() == usage.node.Position() {
+				return
+			}
+		}
 		p.Usage[usage.Template] = append(p.Usage[usage.Template], usage)
 		return
 	}

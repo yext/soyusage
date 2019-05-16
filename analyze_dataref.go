@@ -28,13 +28,14 @@ func recordDataRef(
 			return nil, wrapError(s, node, err)
 		}
 
-		for _, leaf := range leaves {
-			templateUsage := leaf.Usage[s.templateName]
-			leaf.Usage[s.templateName] = append(templateUsage, Usage{
-				Template: s.templateName,
-				Type:     usageType,
-				node:     node,
-			})
+		if usageType != usageReference {
+			for _, leaf := range leaves {
+				leaf.addUsageToLeaves(Usage{
+					Template: s.templateName,
+					Type:     usageType,
+					node:     node,
+				})
+			}
 		}
 		out = append(out, leaves...)
 	}

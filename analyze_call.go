@@ -8,34 +8,16 @@ func analyzeCall(
 	s *scope,
 	call *ast.CallNode,
 ) error {
-	var scopes []*scope
 	template, found := s.registry.Template(call.Name)
 	if !found {
 		return newErrorf(s, call, "template not found: %s", call.Name)
 	}
 
 	callScope := s.call(call.Name)
-	if !call.AllData {
-		callScope.parameters = make(Params)
-	}
-
-	if call.Data != nil {
-		variables, err := extractVariables(s, call.Data)
-		if err != nil {
-			return wrapError(s, call.Data, err)
-		}
-		for _, param := range variables {
-			dataScope := s.call(call.Name)
-			dataScope.parameters = param.Children
-			scopes = append(scopes, dataScope)
-		}
-	} else {
-		scopes = append(scopes, callScope)
-	}
 
 	if callScope.callCycles() > s.config.RecursionDepth {
 		for _, param := range s.parameters {
-			param.Usage[callScope.templateName] = append(param.Usage[callScope.templateName], Usage{
+			param.addUsageToLeaves(Usage{
 				Type:     UsageFull,
 				Template: callScope.templateName,
 				node:     call,
@@ -53,30 +35,66 @@ func analyzeCall(
 		return nil
 	}
 
-	for _, scope := range scopes {
-		for _, parameter := range call.Params {
-			switch v := parameter.(type) {
-			case *ast.CallParamContentNode:
-				err := analyzeNode(s, UsageFull, v.Content)
-				if err != nil {
-					return wrapError(s, parameter, err)
-				}
-				constants, err := extractConstantVariables(s, v.Content)
-				if err != nil {
-					return wrapError(s, parameter, err)
-				}
-				scope.variables[v.Key] = append(scope.variables[v.Key], constants...)
-			case *ast.CallParamValueNode:
-				variables, err := extractVariables(s, v.Value)
-				if err != nil {
-					return wrapError(s, parameter, err)
-				}
-				scope.variables[v.Key] = append(scope.variables[v.Key], variables...)
+	for _, parameter := range call.Params {
+		switch v := parameter.(type) {
+		case *ast.CallParamContentNode:
+			err := analyzeNode(s, UsageFull, v.Content)
+			if err != nil {
+				return wrapError(s, parameter, err)
 			}
-		}
-		if err := analyzeNode(scope, usageUndefined, template.Node); err != nil {
-			return wrapError(s, template.Node, err)
+			constants, err := extractConstantVariables(s, v.Content)
+			if err != nil {
+				return wrapError(s, parameter, err)
+			}
+			callScope.variables[v.Key] = append(callScope.variables[v.Key], constants...)
+		case *ast.CallParamValueNode:
+			variables, err := extractVariables(s, v.Value)
+			if err != nil {
+				return wrapError(s, parameter, err)
+			}
+			callScope.variables[v.Key] = append(callScope.variables[v.Key], variables...)
 		}
 	}
+
+	if call.AllData {
+		for _, templateParam := range template.Doc.Params {
+			_, paramPopulated := callScope.parameters[templateParam.Name]
+			_, variablePopulated := callScope.variables[templateParam.Name]
+			if !paramPopulated && !variablePopulated {
+				if paramValue, exists := s.parameters[templateParam.Name]; exists {
+					callScope.parameters[templateParam.Name] = paramValue
+				}
+				if variableValues, exists := s.variables[templateParam.Name]; exists {
+					callScope.variables[templateParam.Name] = variableValues
+				}
+			}
+		}
+	}
+
+	if call.Data != nil {
+		variables, err := extractVariables(s, call.Data)
+		if err != nil {
+			return wrapError(s, call.Data, err)
+		}
+		for _, param := range variables {
+			for name, param := range param.Children {
+				callScope.variables[name] = append(callScope.variables[name], param)
+			}
+			for _, templateParam := range template.Doc.Params {
+				_, paramPopulated := callScope.parameters[templateParam.Name]
+				_, variablePopulated := callScope.variables[templateParam.Name]
+				if !paramPopulated && !variablePopulated {
+					p := newParam()
+					param.Children[templateParam.Name] = p
+					callScope.parameters[templateParam.Name] = p
+				}
+			}
+		}
+	}
+
+	if err := analyzeNode(callScope, usageUndefined, template.Node); err != nil {
+		return wrapError(s, template.Node, err)
+	}
+
 	return nil
 }

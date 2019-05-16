@@ -3,6 +3,7 @@ package soyusage_test
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 	"testing"
 
 	"github.com/robfig/soy"
@@ -312,12 +313,33 @@ func mapUsage(params soyusage.Params) map[string]interface{} {
 	for name, param := range params {
 		var mappedParam interface{} = mapUsage(param.Children)
 		for _, usages := range param.Usage {
+			sort.Slice(usages, func(i int, j int) bool {
+				var order = map[soyusage.UsageType]int{
+					soyusage.UsageUnknown: 10,
+					soyusage.UsageFull:    9,
+					soyusage.UsageMeta:    7,
+					soyusage.UsageExists:  6,
+				}
+				return order[usages[i].Type] < order[usages[j].Type]
+			})
 			for _, usage := range usages {
+				var newValue string
 				switch usage.Type {
+				case soyusage.UsageMeta:
+					if len(param.Children) == 0 {
+						newValue = "m"
+					}
+				case soyusage.UsageExists:
+					if len(param.Children) == 0 {
+						newValue = "e"
+					}
 				case soyusage.UsageFull:
-					mappedParam = "*"
+					newValue = "*"
 				case soyusage.UsageUnknown:
-					mappedParam = "?"
+					newValue = "?"
+				}
+				if newValue != "" {
+					mappedParam = newValue
 				}
 			}
 		}
@@ -342,15 +364,18 @@ func mapUsageFull(registry *template.Registry, params soyusage.Params) map[strin
 					usageValue["Type"] = "Full"
 				case soyusage.UsageUnknown:
 					usageValue["Type"] = "Unknown"
-				case soyusage.UsageReference:
-					usageValue["Type"] = "Reference"
 				case soyusage.UsageMeta:
 					usageValue["Type"] = "Meta"
+				case soyusage.UsageExists:
+					usageValue["Type"] = "Exists"
 				default:
 					usageValue["Type"] = fmt.Sprint(usage.Type)
 				}
 				usageValue["Template"] = usage.Template
 				usageValue["File"] = registry.Filename(usage.Template)
+				usageValue["Col"] = registry.ColNumber(usage.Template, usage.Node())
+				usageValue["Pos"] = usage.Node().Position()
+				usageValue["String"] = usage.Node().String()
 				usageValue["Line"] = registry.LineNumber(usage.Template, usage.Node())
 
 				usageList = append(usageList, usageValue)

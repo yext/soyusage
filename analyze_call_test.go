@@ -198,34 +198,35 @@ func TestAnalyzeCall(t *testing.T) {
 				{namespace test}
 				/**
 				* @param data
-				* @param altValue
+				* @param rootValue
 				*/
 				{template .main}
 					{call .callee data="$data"}
-						{param x}
-							{$altValue}
-						{/param}
+						{param r: $rootValue/}
 					{/call}
 				{/template}
 
 				/**
 				* @param child
-				* @param x
+				* @param r
 				*/
 				{template .callee}
-					{$x}
-					{call .callee data="all"}
-						{param x: $child.value /}
-					{/call}
+					{$child.value}
+					{$r.child}
+					{call .callee data="all"/}
 				{/template}
 			`,
 			},
 			templateName: "test.main",
 			expected: map[string]interface{}{
 				"data": map[string]interface{}{
+					"child": map[string]interface{}{
+						"value": "*",
+					},
+				},
+				"rootValue": map[string]interface{}{
 					"child": "*",
 				},
-				"altValue": "*",
 			},
 		},
 	}

@@ -53,11 +53,12 @@ func (s *scope) inner() *scope {
 }
 
 // call creates a child scope as a result of a call
+// parameters and variables are reset
 func (s *scope) call(templateName string) *scope {
 	out := &scope{
 		registry:     s.registry,
 		templateName: templateName,
-		parameters:   s.parameters,
+		parameters:   make(Params),
 		variables:    make(map[string][]*Param),
 		config:       s.config,
 	}

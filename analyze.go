@@ -45,6 +45,11 @@ func AnalyzeTemplate(name string, registry *template.Registry, options ...Option
 		s.config = option(s.config)
 	}
 
+	// Add placeholders for all input variables
+	for _, paramDoc := range template.Doc.Params {
+		s.parameters[paramDoc.Name] = newParam()
+	}
+
 	err := analyzeNode(s, usageUndefined, template.Node)
 	if err != nil {
 		return nil, err
@@ -55,7 +60,9 @@ func AnalyzeTemplate(name string, registry *template.Registry, options ...Option
 	for _, paramDoc := range template.Doc.Params {
 		name := paramDoc.Name
 		if param, exists := s.parameters[name]; exists {
-			filteredParams[name] = param
+			if !paramDoc.Optional || len(param.Children) > 0 || len(param.Usage) > 0 {
+				filteredParams[name] = param
+			}
 		}
 	}
 
@@ -106,7 +113,7 @@ func analyzeNode(s *scope, usageType UsageType, node ...ast.Node) error {
 				case "keys":
 					usage = UsageMeta
 				case "augmentMap", "quoteKeysIfJs":
-					usage = UsageReference
+					usage = usageReference
 				case "round", "floor", "ceiling", "min", "max", "randomInt", "strContains":
 					usage = UsageFull
 				}
@@ -470,7 +477,7 @@ func extractVariables(
 			out = append(out, p...)
 		}
 	case *ast.DataRefNode:
-		p, err := recordDataRef(s, UsageReference, v)
+		p, err := recordDataRef(s, usageReference, v)
 		if err != nil {
 			return nil, wrapError(s, node, err)
 		}
@@ -493,7 +500,7 @@ func extractVariables(
 		}
 		out = append(out, v2...)
 	case *ast.TernNode:
-		if err := analyzeNode(s, UsageReference, v.Arg1); err != nil {
+		if err := analyzeNode(s, usageReference, v.Arg1); err != nil {
 			return nil, wrapError(s, node, err)
 		}
 		v1, err := extractVariables(s, v.Arg2)
