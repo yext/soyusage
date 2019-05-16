@@ -35,7 +35,7 @@ func analyzeCall(
 
 	if callScope.callCycles() > s.config.RecursionDepth {
 		for _, param := range s.parameters {
-			param.addUsageToLeaves(Usage{
+			param.Usage[callScope.templateName] = append(param.Usage[callScope.templateName], Usage{
 				Type:     UsageFull,
 				Template: callScope.templateName,
 				node:     call,
