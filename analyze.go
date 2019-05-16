@@ -7,9 +7,26 @@ import (
 	"github.com/robfig/soy/template"
 )
 
+// Config defines configurable options for the analysis process
+type Config struct {
+	// RecursionDepth defines the number of levels to which a recursive call will be analyzed
+	RecursionDepth int
+}
+
+// Recursion sets the recursion depth for this analysis
+func Recursion(depth int) Option {
+	return func(c Config) Config {
+		c.RecursionDepth = depth
+		return c
+	}
+}
+
+// Option defines a function that modifies the configuration for an analysis
+type Option func(Config) Config
+
 // AnalyzeTemplate walks the AST for the specified template and outputs a parameter
 // tree defining where and how those parameters are used.
-func AnalyzeTemplate(name string, registry *template.Registry) (Params, error) {
+func AnalyzeTemplate(name string, registry *template.Registry, options ...Option) (Params, error) {
 	template, found := registry.Template(name)
 	if !found {
 		return nil, fmt.Errorf("template not found: %s", name)
@@ -20,6 +37,12 @@ func AnalyzeTemplate(name string, registry *template.Registry) (Params, error) {
 		templateName: name,
 		parameters:   make(Params),
 		variables:    make(map[string][]*Param),
+		config: Config{
+			RecursionDepth: 2,
+		},
+	}
+	for _, option := range options {
+		s.config = option(s.config)
 	}
 
 	err := analyzeNode(s, usageUndefined, template.Node)
@@ -230,7 +253,7 @@ func findParams(
 		return params, nil
 	}
 	if _, exists := s.parameters[name]; !exists {
-		s.parameters[name] = newParam(name)
+		s.parameters[name] = newParam()
 	}
 	return []*Param{
 		s.parameters[name],
@@ -364,7 +387,7 @@ func extractConstantVariables(
 		var params []*Param
 		switch v := l.Nodes[0].(type) {
 		case *ast.RawTextNode:
-			p := newParam("")
+			p := newParam()
 			p.constant = v.String()
 			params = append(params, p)
 		case *ast.SwitchNode:
@@ -402,7 +425,7 @@ func extractConstantVariables(
 					return nil, wrapError(s, v, err)
 				}
 				for _, value := range constants {
-					p := newParam("")
+					p := newParam()
 					p.constant = fmt.Sprint(value)
 					params = append(params, p)
 				}
@@ -423,11 +446,11 @@ func extractVariables(
 	var out []*Param
 	switch v := node.(type) {
 	case *ast.StringNode:
-		p := newParam("")
+		p := newParam()
 		p.constant = v.Value
 		out = append(out, p)
 	case *ast.IntNode:
-		p := newParam("")
+		p := newParam()
 		p.constant = int(v.Value)
 		out = append(out, p)
 	case *ast.ListLiteralNode:
@@ -516,7 +539,7 @@ func (n nonConstant) String() string {
 func appendConstants(params []*Param, constants ...interface{}) []*Param {
 	out := params
 	for _, value := range constants {
-		p := newParam("")
+		p := newParam()
 		p.constant = value
 		out = append(out, p)
 	}

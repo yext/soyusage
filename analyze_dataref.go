@@ -75,15 +75,9 @@ func recordDataRefAccess(s *scope,
 		case int:
 			nextParam = param
 		case nonConstant:
-			if _, exists := param.Children["[?]"]; !exists {
-				param.Children["[?]"] = newParam("[?]")
-			}
-			nextParam = param.Children["[?]"]
+			nextParam = param.getChildOrNew("[?]")
 		case string:
-			if _, exists := param.Children[name]; !exists {
-				param.Children[name] = newParam(name)
-			}
-			nextParam = param.Children[name]
+			nextParam = param.getChildOrNew(name)
 		}
 		leaves, err := recordDataRefAccess(s, usageType, nextParam, access[1:])
 		if err != nil {

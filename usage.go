@@ -1,6 +1,8 @@
 package soyusage
 
-import "github.com/robfig/soy/ast"
+import (
+	"github.com/robfig/soy/ast"
+)
 
 const (
 	usageUndefined UsageType = iota
@@ -29,14 +31,12 @@ type (
 	// Param defines a single parameter, or field within a parent parameter.
 	// It contains details of how the parameter was used within the analyzed templates.
 	Param struct {
-		name string // placeholder for the parameter name for reference
+		parent *Param
 
 		// Children identifies all fields within this Param
 		Children Params
 		// Usage describes how this parameter or field was used
 		Usage UsageByTemplate
-
-		RecursesTo *Param
 
 		// A constant value for this param
 		constant interface{}
@@ -57,8 +57,17 @@ type (
 	UsageByTemplate map[string][]Usage
 )
 
-func (p *Param) IsRecursive() bool {
-	return p.RecursesTo != nil
+func (p *Param) addChild(name string, child *Param) *Param {
+	child.parent = p
+	p.Children[name] = child
+	return child
+}
+
+func (p *Param) getChildOrNew(name string) *Param {
+	if child, exists := p.Children[name]; exists {
+		return child
+	}
+	return p.addChild(name, newParam())
 }
 
 // Node provides a reference to the AST node where the param was used.
@@ -72,9 +81,8 @@ func (p *Param) isConstant() bool {
 	return p.constant != nil
 }
 
-func newParam(name string) *Param {
+func newParam() *Param {
 	return &Param{
-		name:     name,
 		Children: make(Params),
 		Usage:    make(UsageByTemplate),
 	}

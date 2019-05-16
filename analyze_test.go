@@ -277,8 +277,10 @@ type analyzeTest struct {
 }
 
 func testAnalyze(t *testing.T, tests []analyzeTest) {
+	t.Helper()
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			t.Helper()
 			bundle := soy.NewBundle()
 			for name, content := range test.templates {
 				bundle = bundle.AddTemplateString(name, content)
@@ -308,10 +310,6 @@ func jsonSprint(value interface{}) string {
 func mapUsage(params soyusage.Params) map[string]interface{} {
 	var out = make(map[string]interface{})
 	for name, param := range params {
-		if param.IsRecursive() {
-			out[name] = "R"
-			continue
-		}
 		var mappedParam interface{} = mapUsage(param.Children)
 		for _, usages := range param.Usage {
 			for _, usage := range usages {

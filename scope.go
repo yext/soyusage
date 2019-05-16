@@ -9,6 +9,7 @@ type scope struct {
 	callStack    []*scope
 	parameters   Params
 	variables    map[string][]*Param
+	config       Config
 }
 
 // isRecursive returns true iff this scope is part of a recursive call stack
@@ -28,16 +29,6 @@ func (s *scope) callCycles() int {
 	return cycles
 }
 
-func (s *scope) finalCycle() *scope {
-	var cycle *scope
-	for _, stackCall := range s.callStack {
-		if stackCall.templateName == s.templateName {
-			cycle = stackCall
-		}
-	}
-	return cycle
-}
-
 // inner creates a new scope "inside" the current scope
 // The new scope has all the same state, but a new set of variables
 // is created so assignments don't escape up the stack.
@@ -48,6 +39,7 @@ func (s *scope) inner() *scope {
 		callStack:    nil,
 		parameters:   s.parameters,
 		variables:    make(map[string][]*Param),
+		config:       s.config,
 	}
 
 	for _, template := range s.callStack {
@@ -67,6 +59,7 @@ func (s *scope) call(templateName string) *scope {
 		templateName: templateName,
 		parameters:   s.parameters,
 		variables:    make(map[string][]*Param),
+		config:       s.config,
 	}
 
 	for _, template := range s.callStack {
