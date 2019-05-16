@@ -70,6 +70,44 @@ func TestAnalyzeCall(t *testing.T) {
 			},
 		},
 		{
+			name: "sub calls preserve all",
+			templates: map[string]string{
+				"test.soy": `
+				{namespace test}
+				/**
+				* @param data
+				*/
+				{template .main}
+					{call .callee data="all"}
+					{/call}
+				{/template}
+
+				/**
+				* @param data
+				*/
+				{template .callee}
+					{$data.child}
+					{call .subcallee data="all"}
+					{/call}
+				{/template}
+
+				/**
+				* @param data
+				*/
+				{template .subcallee}
+					{$data.child2}
+				{/template}
+			`,
+			},
+			templateName: "test.main",
+			expected: map[string]interface{}{
+				"data": map[string]interface{}{
+					"child":  "*",
+					"child2": "*",
+				},
+			},
+		},
+		{
 			name: "handles simple cycle",
 			templates: map[string]string{
 				"test.soy": `
