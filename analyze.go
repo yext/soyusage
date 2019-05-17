@@ -433,7 +433,7 @@ func extractConstantVariables(
 				}
 				for _, value := range constants {
 					p := newParam()
-					p.constant = fmt.Sprint(value)
+					p.constant = value
 					params = append(params, p)
 				}
 			}
@@ -540,7 +540,7 @@ func extractVariables(
 type nonConstant struct{}
 
 func (n nonConstant) String() string {
-	return "?"
+	return "==?=="
 }
 
 func appendConstants(params []*Param, constants ...interface{}) []*Param {

@@ -62,7 +62,7 @@ func TestAnalyzeConstantMapAccess(t *testing.T) {
 				"alternative": "*",
 				"locale":      "*",
 				"profile": map[string]interface{}{
-					"?":           "*",
+					"[?]":         "*",
 					"c_lifeAbout": "*",
 				},
 			},
