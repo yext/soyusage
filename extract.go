@@ -29,12 +29,10 @@ func extractParam(param *Param, in data.Value) data.Value {
 	if in == nil {
 		return nil
 	}
-	for _, usages := range param.Usage {
-		for _, usage := range usages {
-			switch usage.Type {
-			case UsageFull, UsageUnknown:
-				return in
-			}
+	for _, usage := range param.Usage {
+		switch usage.Type {
+		case UsageFull, UsageUnknown:
+			return in
 		}
 	}
 	return Extract(in, param.Children)

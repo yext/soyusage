@@ -34,7 +34,7 @@ type (
 		// Children identifies all fields within this Param
 		Children Params
 		// Usage describes how this parameter or field was used
-		Usage UsageByTemplate
+		Usage []Usage
 
 		// A constant value for this param
 		constant interface{}
@@ -51,20 +51,18 @@ type (
 
 		node ast.Node
 	}
-	// UsageByTemplate organizes usages by where they occurred
-	UsageByTemplate map[string][]Usage
 )
 
 func (p *Param) addUsageToLeaves(usage Usage) {
 	if len(p.Children) == 0 {
-		for _, otherUsage := range p.Usage[usage.Template] {
+		for _, otherUsage := range p.Usage {
 			if otherUsage.Template == usage.Template &&
 				otherUsage.Type == usage.Type &&
 				otherUsage.node.Position() == usage.node.Position() {
 				return
 			}
 		}
-		p.Usage[usage.Template] = append(p.Usage[usage.Template], usage)
+		p.Usage = append(p.Usage, usage)
 		return
 	}
 	for _, child := range p.Children {
@@ -98,6 +96,5 @@ func (p *Param) isConstant() bool {
 func newParam() *Param {
 	return &Param{
 		Children: make(Params),
-		Usage:    make(UsageByTemplate),
 	}
 }
