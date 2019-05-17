@@ -26,17 +26,17 @@ type Option func(Config) Config
 
 // AnalyzeTemplate walks the AST for the specified template and outputs a parameter
 // tree defining where and how those parameters are used.
-func AnalyzeTemplate(name string, registry *template.Registry, options ...Option) (Params, error) {
-	template, found := registry.Template(name)
+func AnalyzeTemplate(templateName string, registry *template.Registry, options ...Option) (Params, error) {
+	template, found := registry.Template(templateName)
 	if !found {
-		return nil, fmt.Errorf("template not found: %s", name)
+		return nil, fmt.Errorf("template not found: %s", templateName)
 	}
 
 	s := &scope{
 		registry:     registry,
-		templateName: name,
+		templateName: templateName,
 		parameters:   make(Params),
-		variables:    make(map[string][]*Param),
+		variables:    make(map[Identifier][]*Param),
 		config: Config{
 			RecursionDepth: 2,
 		},
@@ -47,7 +47,7 @@ func AnalyzeTemplate(name string, registry *template.Registry, options ...Option
 
 	// Add placeholders for all input variables
 	for _, paramDoc := range template.Doc.Params {
-		s.parameters[paramDoc.Name] = newParam()
+		s.parameters[Name(paramDoc.Name)] = newParam()
 	}
 
 	err := analyzeNode(s, usageUndefined, template.Node)
@@ -58,7 +58,7 @@ func AnalyzeTemplate(name string, registry *template.Registry, options ...Option
 	// Filter out all the params that are not passed into this template
 	var filteredParams = make(Params)
 	for _, paramDoc := range template.Doc.Params {
-		name := paramDoc.Name
+		name := Name(paramDoc.Name)
 		if param, exists := s.parameters[name]; exists {
 			if !paramDoc.Optional || len(param.Children) > 0 || len(param.Usage) > 0 {
 				filteredParams[name] = param
@@ -98,12 +98,12 @@ func analyzeNode(s *scope, usageType UsageType, node ...ast.Node) error {
 				if err != nil {
 					return wrapError(s, node, err)
 				}
-				cs.variables[v.Var] = variables
+				cs.variables[Name(v.Var)] = variables
 				constants, err := constantValues(cs, v.List)
 				if err != nil {
 					return wrapError(s, node, err)
 				}
-				cs.variables[v.Var] = appendConstants(cs.variables[v.Var], constants...)
+				cs.variables[Name(v.Var)] = appendConstants(cs.variables[Name(v.Var)], constants...)
 				return analyzeNode(cs, usageType, v.Body)
 			case *ast.FunctionNode:
 				var usage = UsageUnknown
@@ -145,13 +145,13 @@ func analyzeNode(s *scope, usageType UsageType, node ...ast.Node) error {
 				if err != nil {
 					return wrapError(s, node, err)
 				}
-				cs.variables[v.Name] = variables
+				cs.variables[Name(v.Name)] = variables
 			case *ast.LetValueNode:
 				variables, err := extractVariables(cs, v.Expr)
 				if err != nil {
 					return wrapError(s, node, err)
 				}
-				cs.variables[v.Name] = variables
+				cs.variables[Name(v.Name)] = variables
 				return nil
 			case *ast.ListLiteralNode:
 				return analyzeNode(cs, usageType, v.Items...)
@@ -254,7 +254,7 @@ func analyzeNode(s *scope, usageType UsageType, node ...ast.Node) error {
 
 func findParams(
 	s *scope,
-	name string,
+	name Identifier,
 ) ([]*Param, error) {
 	if params, exist := s.variables[name]; exist {
 		return params, nil
@@ -274,7 +274,7 @@ func constantValues(s *scope, node ast.Node) ([]interface{}, error) {
 	case *ast.IntNode:
 		return []interface{}{int(v.Value)}, nil
 	case *ast.DataRefNode:
-		params, err := findParams(s, v.Key)
+		params, err := findParams(s, Name(v.Key))
 		if err != nil {
 			return nil, wrapError(s, v, err)
 		}

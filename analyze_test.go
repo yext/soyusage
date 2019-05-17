@@ -341,7 +341,7 @@ func mapUsage(params soyusage.Params) map[string]interface{} {
 				mappedParam = newValue
 			}
 		}
-		out[name] = mappedParam
+		out[name.String()] = mappedParam
 	}
 	return out
 }
@@ -380,7 +380,7 @@ func mapUsageFull(registry *template.Registry, params soyusage.Params) map[strin
 			usageList = append(usageList, usageValue)
 		}
 		paramOut["Usage"] = usageList
-		out[name] = paramOut
+		out[name.String()] = paramOut
 	}
 	return out
 }

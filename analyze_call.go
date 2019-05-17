@@ -30,26 +30,29 @@ func analyzeCall(
 			if err != nil {
 				return wrapError(s, parameter, err)
 			}
-			callScope.variables[v.Key] = append(callScope.variables[v.Key], constants...)
+			n := Name(v.Key)
+			callScope.variables[n] = append(callScope.variables[n], constants...)
 		case *ast.CallParamValueNode:
 			variables, err := extractVariables(s, v.Value)
 			if err != nil {
 				return wrapError(s, parameter, err)
 			}
-			callScope.variables[v.Key] = append(callScope.variables[v.Key], variables...)
+			n := Name(v.Key)
+			callScope.variables[n] = append(callScope.variables[n], variables...)
 		}
 	}
 
 	if call.AllData {
 		for _, templateParam := range template.Doc.Params {
-			if paramValue, exists := s.parameters[templateParam.Name]; exists {
-				callScope.parameters[templateParam.Name] = paramValue
+			paramName := Name(templateParam.Name)
+			if paramValue, exists := s.parameters[paramName]; exists {
+				callScope.parameters[paramName] = paramValue
 			}
-			if variableValues, exists := s.variables[templateParam.Name]; exists {
-				callScope.variables[templateParam.Name] = variableValues
+			if variableValues, exists := s.variables[paramName]; exists {
+				callScope.variables[paramName] = variableValues
 			}
-			_, paramPopulated := callScope.parameters[templateParam.Name]
-			_, variablePopulated := callScope.variables[templateParam.Name]
+			_, paramPopulated := callScope.parameters[paramName]
+			_, variablePopulated := callScope.variables[paramName]
 			if !paramPopulated && !variablePopulated {
 				p := newParam()
 				if callScope.callCycles() == s.config.RecursionDepth {
@@ -59,8 +62,8 @@ func analyzeCall(
 						node:     getNodeForName(s, templateParam.Name, call),
 					})
 				}
-				s.parameters[templateParam.Name] = p
-				callScope.parameters[templateParam.Name] = p
+				s.parameters[paramName] = p
+				callScope.parameters[paramName] = p
 			}
 		}
 	}
@@ -75,8 +78,9 @@ func analyzeCall(
 				callScope.variables[name] = append(callScope.variables[name], param)
 			}
 			for _, templateParam := range template.Doc.Params {
-				_, paramPopulated := callScope.parameters[templateParam.Name]
-				_, variablePopulated := callScope.variables[templateParam.Name]
+				paramName := Name(templateParam.Name)
+				_, paramPopulated := callScope.parameters[paramName]
+				_, variablePopulated := callScope.variables[paramName]
 				if !paramPopulated && !variablePopulated {
 					p := newParam()
 					if callScope.callCycles() == s.config.RecursionDepth {
@@ -86,8 +90,8 @@ func analyzeCall(
 							node:     getNodeForName(s, templateParam.Name, call),
 						})
 					}
-					param.Children[templateParam.Name] = p
-					callScope.parameters[templateParam.Name] = p
+					param.Children[paramName] = p
+					callScope.parameters[paramName] = p
 				}
 			}
 		}

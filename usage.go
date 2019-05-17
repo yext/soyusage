@@ -26,7 +26,7 @@ const (
 // Usage provides details of the manner in which a param was used.
 type (
 	// Params specifies a collection of parameters, organized by name.
-	Params map[string]*Param
+	Params map[Identifier]*Param
 
 	// Param defines a single parameter, or field within a parent parameter.
 	// It contains details of how the parameter was used within the analyzed templates.
@@ -40,6 +40,14 @@ type (
 		constant interface{}
 	}
 
+	// Identifier names a parameter
+	Identifier interface {
+		String() string
+	}
+
+	Name     string
+	MapIndex struct{}
+
 	// UsageType specifies the manner in which a parameter was used.
 	UsageType int
 
@@ -52,6 +60,14 @@ type (
 		node ast.Node
 	}
 )
+
+func (n Name) String() string {
+	return string(n)
+}
+
+func (MapIndex) String() string {
+	return "[?]"
+}
 
 func (p *Param) addUsageToLeaves(usage Usage) {
 	if len(p.Children) == 0 {
@@ -70,12 +86,12 @@ func (p *Param) addUsageToLeaves(usage Usage) {
 	}
 }
 
-func (p *Param) addChild(name string, child *Param) *Param {
+func (p *Param) addChild(name Identifier, child *Param) *Param {
 	p.Children[name] = child
 	return child
 }
 
-func (p *Param) getChildOrNew(name string) *Param {
+func (p *Param) getChildOrNew(name Identifier) *Param {
 	if child, exists := p.Children[name]; exists {
 		return child
 	}

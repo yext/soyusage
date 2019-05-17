@@ -11,7 +11,7 @@ func recordDataRef(
 		return nil, newErrorf(s, node, "usage type was not set")
 	}
 
-	params, err := findParams(s, node.Key)
+	params, err := findParams(s, Name(node.Key))
 	if err != nil {
 		return nil, wrapError(s, node, err)
 	}
@@ -70,13 +70,13 @@ func recordDataRefAccess(s *scope,
 	var out []*Param
 	for _, n := range names {
 		var nextParam *Param
-		switch name := n.(type) {
+		switch paramName := n.(type) {
 		case int:
 			nextParam = param
 		case nonConstant:
-			nextParam = param.getChildOrNew("[?]")
+			nextParam = param.getChildOrNew(MapIndex{})
 		case string:
-			nextParam = param.getChildOrNew(name)
+			nextParam = param.getChildOrNew(Name(paramName))
 		}
 		leaves, err := recordDataRefAccess(s, usageType, nextParam, access[1:])
 		if err != nil {

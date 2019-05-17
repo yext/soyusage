@@ -8,7 +8,7 @@ type scope struct {
 	templateName string
 	callStack    []*scope
 	parameters   Params
-	variables    map[string][]*Param
+	variables    map[Identifier][]*Param
 	config       Config
 }
 
@@ -38,7 +38,7 @@ func (s *scope) inner() *scope {
 		templateName: s.templateName,
 		callStack:    nil,
 		parameters:   s.parameters,
-		variables:    make(map[string][]*Param),
+		variables:    make(map[Identifier][]*Param),
 		config:       s.config,
 	}
 
@@ -59,7 +59,7 @@ func (s *scope) call(templateName string) *scope {
 		registry:     s.registry,
 		templateName: templateName,
 		parameters:   make(Params),
-		variables:    make(map[string][]*Param),
+		variables:    make(map[Identifier][]*Param),
 		config:       s.config,
 	}
 

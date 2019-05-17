@@ -15,12 +15,34 @@ func Extract(in data.Value, params Params) data.Value {
 		return in
 	}
 
-	for name, param := range params {
-		var outVal data.Value
-		outVal = extractParam(param, inMap[name])
-		if outVal != nil {
-			out[name] = outVal
+	for paramName, param := range params {
+		inValue := inMap[paramName.String()]
+		if (MapIndex{}) == paramName {
+			values := extractMap(param, inMap)
+			for name, value := range values {
+				out[name] = value
+			}
 		}
+
+		var outVal data.Value
+		outVal = extractParam(param, inValue)
+		if outVal != nil {
+			out[paramName.String()] = outVal
+		}
+	}
+	return out
+}
+
+func extractMap(param *Param, in data.Value) data.Map {
+	var (
+		out          = make(data.Map)
+		inMap, isMap = in.(data.Map)
+	)
+	if !isMap {
+		return nil
+	}
+	for name, value := range inMap {
+		out[name] = Extract(value, param.Children)
 	}
 	return out
 }
