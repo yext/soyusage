@@ -42,15 +42,25 @@ func analyzeCall(
 
 	if call.AllData {
 		for _, templateParam := range template.Doc.Params {
+			if paramValue, exists := s.parameters[templateParam.Name]; exists {
+				callScope.parameters[templateParam.Name] = paramValue
+			}
+			if variableValues, exists := s.variables[templateParam.Name]; exists {
+				callScope.variables[templateParam.Name] = variableValues
+			}
 			_, paramPopulated := callScope.parameters[templateParam.Name]
 			_, variablePopulated := callScope.variables[templateParam.Name]
 			if !paramPopulated && !variablePopulated {
-				if paramValue, exists := s.parameters[templateParam.Name]; exists {
-					callScope.parameters[templateParam.Name] = paramValue
+				p := newParam()
+				if callScope.callCycles() == s.config.RecursionDepth {
+					p.addUsageToLeaves(Usage{
+						Type:     UsageFull,
+						Template: callScope.templateName,
+						node:     getNodeForName(s, templateParam.Name, call),
+					})
 				}
-				if variableValues, exists := s.variables[templateParam.Name]; exists {
-					callScope.variables[templateParam.Name] = variableValues
-				}
+				s.parameters[templateParam.Name] = p
+				callScope.parameters[templateParam.Name] = p
 			}
 		}
 	}
@@ -86,7 +96,6 @@ func analyzeCall(
 	if err := analyzeNode(callScope, usageUndefined, template.Node); err != nil {
 		return wrapError(s, template.Node, err)
 	}
-
 	return nil
 }
 
