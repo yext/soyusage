@@ -359,12 +359,15 @@ func mapUsageFull(registry *template.Registry, params soyusage.Params) map[strin
 			switch usage.Type {
 			case soyusage.UsageFull:
 				usageValue["Type"] = "Full"
+				usageValue["String"] = usage.Node().String()
 			case soyusage.UsageUnknown:
 				usageValue["Type"] = "Unknown"
 			case soyusage.UsageMeta:
 				usageValue["Type"] = "Meta"
 			case soyusage.UsageExists:
 				usageValue["Type"] = "Exists"
+			case soyusage.UsageReference:
+				usageValue["Type"] = "Reference"
 			default:
 				usageValue["Type"] = fmt.Sprint(usage.Type)
 			}
@@ -372,7 +375,6 @@ func mapUsageFull(registry *template.Registry, params soyusage.Params) map[strin
 			usageValue["File"] = registry.Filename(usage.Template)
 			usageValue["Col"] = registry.ColNumber(usage.Template, usage.Node())
 			usageValue["Pos"] = usage.Node().Position()
-			usageValue["String"] = usage.Node().String()
 			usageValue["Line"] = registry.LineNumber(usage.Template, usage.Node())
 
 			usageList = append(usageList, usageValue)

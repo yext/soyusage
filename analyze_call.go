@@ -16,22 +16,6 @@ func analyzeCall(
 	callScope := s.call(call.Name)
 
 	if callScope.callCycles() > s.config.RecursionDepth {
-		for _, param := range s.parameters {
-			param.addUsageToLeaves(Usage{
-				Type:     UsageFull,
-				Template: callScope.templateName,
-				node:     call,
-			})
-		}
-		for _, variables := range s.variables {
-			for _, variable := range variables {
-				variable.addUsageToLeaves(Usage{
-					Type:     UsageFull,
-					Template: callScope.templateName,
-					node:     call,
-				})
-			}
-		}
 		return nil
 	}
 
@@ -85,6 +69,13 @@ func analyzeCall(
 				_, variablePopulated := callScope.variables[templateParam.Name]
 				if !paramPopulated && !variablePopulated {
 					p := newParam()
+					if callScope.callCycles() == s.config.RecursionDepth {
+						p.addUsageToLeaves(Usage{
+							Type:     UsageFull,
+							Template: callScope.templateName,
+							node:     getNodeForName(s, templateParam.Name, call),
+						})
+					}
 					param.Children[templateParam.Name] = p
 					callScope.parameters[templateParam.Name] = p
 				}
@@ -97,4 +88,24 @@ func analyzeCall(
 	}
 
 	return nil
+}
+
+func getNodeForName(
+	s *scope,
+	name string,
+	call *ast.CallNode,
+) ast.Node {
+	for _, parameter := range call.Params {
+		switch v := parameter.(type) {
+		case *ast.CallParamContentNode:
+			if v.Key == name {
+				return v
+			}
+		case *ast.CallParamValueNode:
+			if v.Key == name {
+				return v
+			}
+		}
+	}
+	return call
 }
