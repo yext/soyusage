@@ -32,6 +32,44 @@ func TestExtract(t *testing.T) {
 			expected: data.New(map[string]interface{}{
 				"a": map[string]interface{}{},
 			}),
+		}, {
+			name: "iteration is handled",
+			templates: map[string]string{
+				"test.soy": `
+				{namespace test}
+				/**
+				* @param list
+				*/
+				{template .main}
+					{foreach $item in $list}
+						{$item.value}
+					{/foreach}
+				{/template}
+			`,
+			},
+			templateName: "test.main",
+			in: data.New(map[string]interface{}{
+				"list": []interface{}{
+					map[string]interface{}{
+						"value":  1,
+						"unused": "ignore1",
+					},
+					map[string]interface{}{
+						"value":  2,
+						"unused": "ignore2",
+					},
+				},
+			}),
+			expected: data.New(map[string]interface{}{
+				"list": []interface{}{
+					map[string]interface{}{
+						"value": 1,
+					},
+					map[string]interface{}{
+						"value": 2,
+					},
+				},
+			}),
 		},
 		{
 			name: "removes unused parameters",

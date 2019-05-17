@@ -29,6 +29,13 @@ func extractParam(param *Param, in data.Value) data.Value {
 	if in == nil {
 		return nil
 	}
+	if listValue, isList := in.(data.List); isList {
+		var outList data.List
+		for _, value := range listValue {
+			outList = append(outList, extractParam(param, value))
+		}
+		return outList
+	}
 	for _, usage := range param.Usage {
 		switch usage.Type {
 		case UsageFull, UsageUnknown:
