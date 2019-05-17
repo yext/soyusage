@@ -268,6 +268,48 @@ func TestExtract(t *testing.T) {
 			}),
 			recursionDepth: 5,
 		},
+		{
+			name: "handles combined constant and variable values",
+			templates: map[string]string{
+				"test.soy": `
+				{namespace test}
+				/**
+				* @param profile
+				* @param locale
+				* @param alternative
+				*/
+				{template .main}
+					{let $textField}
+						{if $locale == 'en'}
+							c_lifeAbout
+						{else}
+							{$alternative}
+						{/if}
+					{/let}
+					{$profile[$textField]}
+				{/template}
+			`,
+			},
+			templateName: "test.main",
+			in: data.New(map[string]interface{}{
+				"profile": map[string]interface{}{
+					"c_lifeAbout": "life about",
+					"second":      "value 2",
+					"third":       "value 3",
+				},
+				"locale":      "loc",
+				"alternative": "alt",
+			}),
+			expected: data.New(map[string]interface{}{
+				"profile": map[string]interface{}{
+					"c_lifeAbout": "life about",
+					"second":      "value 2",
+					"third":       "value 3",
+				},
+				"locale":      "loc",
+				"alternative": "alt",
+			}),
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
