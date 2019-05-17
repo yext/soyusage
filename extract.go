@@ -58,11 +58,23 @@ func extractParam(param *Param, in data.Value) data.Value {
 		}
 		return outList
 	}
+	var (
+		isFull   bool
+		isExists bool
+	)
 	for _, usage := range param.Usage {
 		switch usage.Type {
-		case UsageFull, UsageUnknown:
-			return in
+		case UsageFull, UsageUnknown, UsageMeta:
+			isFull = true
+		case UsageExists:
+			isExists = true
 		}
+	}
+	if isFull {
+		return in
+	}
+	if isExists && len(param.Children) == 0 {
+		return data.String("")
 	}
 	return Extract(in, param.Children)
 }

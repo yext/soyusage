@@ -34,6 +34,35 @@ func TestExtract(t *testing.T) {
 			}),
 		},
 		{
+			name: "handles if",
+			templates: map[string]string{
+				"test.soy": `
+				{namespace test}
+				/**
+				* @param a
+				* @param b
+				*/
+				{template .main}
+					{if $a}
+						{$b}
+					{/if}
+				{/template}
+			`,
+			},
+			templateName: "test.main",
+			in: data.New(map[string]interface{}{
+				"a": map[string]interface{}{
+					"item1": "value1",
+					"item2": "value2",
+				},
+				"b": "bvalue",
+			}),
+			expected: data.New(map[string]interface{}{
+				"a": "",
+				"b": "bvalue",
+			}),
+		},
+		{
 			name: "iteration is handled",
 			templates: map[string]string{
 				"test.soy": `
