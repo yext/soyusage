@@ -4,6 +4,8 @@ import (
 	"fmt"
 
 	"github.com/robfig/soy/ast"
+	"github.com/robfig/soy/data"
+	"github.com/robfig/soy/soyhtml"
 	"github.com/robfig/soy/template"
 )
 
@@ -194,19 +196,13 @@ func analyzeNode(s *scope, usageType UsageType, node ...ast.Node) error {
 				return analyzeNode(cs, UsageFull, v.Arg1, v.Arg2)
 			case *ast.NotNode:
 				return analyzeNode(cs, UsageFull, v.Arg)
-			case *ast.PrintDirectiveNode:
-				return analyzeNode(cs, usageType, v.Children()...)
 			case *ast.PrintNode:
 				err := analyzeNode(cs, UsageFull, v.Arg)
 				if err != nil {
 					return err
 				}
-				for _, directive := range v.Directives {
-					err := analyzeNode(cs, UsageUnknown, directive)
-					if err != nil {
-						return err
-					}
-				}
+				// Note, directives can be ignored as they are applied after
+				// the parameters are printed
 			case *ast.SwitchNode:
 				if err := analyzeNode(cs, UsageFull, v.Value); err != nil {
 					return err
@@ -426,16 +422,17 @@ func extractConstantVariables(
 			}
 			params = append(params, p...)
 		case *ast.PrintNode:
-			if len(v.Directives) == 0 {
-				constants, err := constantValues(s, v.Arg)
+			constants, err := constantValues(s, v.Arg)
+			if err != nil {
+				return nil, wrapError(s, v, err)
+			}
+			for _, value := range constants {
+				p := newParam()
+				p.constant, err = applyDirectivesToConstant(s, v, value)
 				if err != nil {
 					return nil, wrapError(s, v, err)
 				}
-				for _, value := range constants {
-					p := newParam()
-					p.constant = value
-					params = append(params, p)
-				}
+				params = append(params, p)
 			}
 		case *ast.CallNode, *ast.ForNode:
 		default:
@@ -444,6 +441,40 @@ func extractConstantVariables(
 		return params, nil
 	}
 	return nil, nil
+}
+
+// applyDirectivesToConstant will make best efforts to apply existing directives to a constant
+// value.
+// If the directives have additional arguments, or any of the functions fail, a non-constant
+// value is returned.
+func applyDirectivesToConstant(s *scope, node *ast.PrintNode, constant interface{}) (interface{}, error) {
+	if _, isNonConstant := constant.(nonConstant); isNonConstant {
+		return constant, nil
+	}
+
+	var result = data.New(constant)
+	for _, directiveNode := range node.Directives {
+		var directive, ok = soyhtml.PrintDirectives[directiveNode.Name]
+		if !ok {
+			return nil, newErrorf(s, directiveNode, "directive %q not found", directiveNode.Name)
+		}
+		if len(directiveNode.Args) > 0 {
+			return nonConstant{}, nil
+		}
+		err := func() (err error) {
+			defer func() {
+				if rErr := recover(); rErr != nil {
+					err = newErrorf(s, directiveNode, "error in directive %q: %v", directiveNode.Name, rErr)
+				}
+			}()
+			result = directive.Apply(result, nil)
+			return nil
+		}()
+		if err != nil {
+			return nil, wrapError(s, node, err)
+		}
+	}
+	return result.String(), nil
 }
 
 func extractVariables(

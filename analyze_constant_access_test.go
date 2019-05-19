@@ -36,6 +36,33 @@ func TestAnalyzeConstantMapAccess(t *testing.T) {
 			},
 		},
 		{
+			name: "handles mapping with print directive",
+			templates: map[string]string{
+				"test.soy": `
+				{namespace test}
+				/**
+				* @param profile
+				*/
+				{template .main}
+					
+					{let $textField}
+						{'c_lifeAbout' | noAutoescape}
+					{/let}
+					{let $textField2: 'c_other'/}
+					{$profile[$textField]}
+					{$profile[$textField2]}
+				{/template}
+			`,
+			},
+			templateName: "test.main",
+			expected: map[string]interface{}{
+				"profile": map[string]interface{}{
+					"c_other":     "*",
+					"c_lifeAbout": "*",
+				},
+			},
+		},
+		{
 			name: "handles combined constant and variable values",
 			templates: map[string]string{
 				"test.soy": `
