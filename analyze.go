@@ -553,6 +553,8 @@ func extractVariables(
 				}
 				out = append(out, variables...)
 			}
+		} else {
+			analyzeNode(s, UsageUnknown, v.Children()...)
 		}
 	default:
 		type withChildren interface {
