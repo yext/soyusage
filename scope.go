@@ -1,6 +1,6 @@
 package soyusage
 
-import "github.com/robfig/soy/template"
+import "github.com/yext/soy/template"
 
 // scope represents the usage at the current position in the stack
 type scope struct {

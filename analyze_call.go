@@ -1,7 +1,7 @@
 package soyusage
 
 import (
-	"github.com/robfig/soy/ast"
+	"github.com/yext/soy/ast"
 )
 
 func analyzeCall(

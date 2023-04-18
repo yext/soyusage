@@ -3,8 +3,8 @@ package soyusage_test
 import (
 	"fmt"
 
-	"github.com/robfig/soy"
-	"github.com/theothertomelliott/soyusage"
+	"github.com/yext/soy"
+	"github.com/yext/soyusage"
 )
 
 func ExampleAnalyzeTemplate() {

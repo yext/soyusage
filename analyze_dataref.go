@@ -1,6 +1,6 @@
 package soyusage
 
-import "github.com/robfig/soy/ast"
+import "github.com/yext/soy/ast"
 
 func recordDataRef(
 	s *scope,

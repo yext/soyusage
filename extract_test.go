@@ -4,10 +4,10 @@ import (
 	"testing"
 
 	"github.com/theothertomelliott/must"
-	"github.com/theothertomelliott/soyusage"
+	"github.com/yext/soyusage"
 
-	"github.com/robfig/soy"
-	"github.com/robfig/soy/data"
+	"github.com/yext/soy"
+	"github.com/yext/soy/data"
 )
 
 func TestExtract(t *testing.T) {

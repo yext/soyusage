@@ -1,4 +1,4 @@
-// Package soyusage analyzes soy templates compiled using github.com/robfig/soy to
+// Package soyusage analyzes soy templates compiled using github.com/yext/soy to
 // determine the usage of parameters from within the template and other templates
 // it calls.
 //

@@ -3,10 +3,10 @@ package soyusage
 import (
 	"fmt"
 
-	"github.com/robfig/soy/ast"
-	"github.com/robfig/soy/data"
-	"github.com/robfig/soy/soyhtml"
-	"github.com/robfig/soy/template"
+	"github.com/yext/soy/ast"
+	"github.com/yext/soy/data"
+	"github.com/yext/soy/soyhtml"
+	"github.com/yext/soy/template"
 )
 
 // Config defines configurable options for the analysis process

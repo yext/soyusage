@@ -1,7 +1,7 @@
 package soyusage
 
 import (
-	"github.com/robfig/soy/data"
+	"github.com/yext/soy/data"
 )
 
 // Extract returns a version of the input data containing only

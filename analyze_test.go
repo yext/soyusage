@@ -6,10 +6,10 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/robfig/soy"
-	"github.com/robfig/soy/template"
 	"github.com/theothertomelliott/must"
-	"github.com/theothertomelliott/soyusage"
+	"github.com/yext/soy"
+	"github.com/yext/soy/template"
+	"github.com/yext/soyusage"
 )
 
 func TestAnalyzeParamHierarchy(t *testing.T) {
